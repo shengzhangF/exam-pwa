@@ -588,7 +588,7 @@ function renderQuestion() {
     }
     html += `<div class="flex-row mt12">`;
     if (currentMode === 'sequential' || currentMode === 'wrong' || currentMode === 'browse') {
-      html += `<button class="btn btn-outline" onclick="prevQuestion()" ${currentQIndex===0?'disabled':''}>← 上一题</button>`;
+      html += `<button class="btn btn-outline" style="flex:1" onclick="prevQuestion()" ${currentQIndex===0?'disabled':''}>← 上一题</button>`;
     }
     html += `<button class="btn btn-blue" style="flex:1" onclick="nextQuestion()">下一题 →</button></div>`;
   }
