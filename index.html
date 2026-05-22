@@ -1598,7 +1598,7 @@ function renderAdmin() {
 }
 
 let adminSearchTerm = '';
-let adminFilterCat = '';
+let adminFilterType = '';
 let adminPage = 1;
 let selectedIds = new Set();
 const ADMIN_PAGE_SIZE = 15;
@@ -1636,9 +1636,9 @@ function renderAdminList() {
   const search = adminSearchTerm.toLowerCase();
   let filtered = questions;
   if (search) filtered = filtered.filter(q => (q.stem||'').toLowerCase().includes(search) || String(q.id).includes(search) || (q.category||'').includes(search));
-  if (adminFilterCat) filtered = filtered.filter(q => q.category === adminFilterCat);
+  if (adminFilterType) filtered = filtered.filter(q => q.qtype === adminFilterType);
 
-  const cats = [...new Set(questions.map(q => q.category).filter(Boolean))].sort();
+  const types = ['单选题', '多选题', '判断题'];
   const totalPages = Math.ceil(filtered.length / ADMIN_PAGE_SIZE);
   if (adminPage > totalPages) adminPage = totalPages || 1;
   const start = (adminPage - 1) * ADMIN_PAGE_SIZE;
@@ -1651,6 +1651,7 @@ function renderAdminList() {
     <div class="flex-row">
       <button class="btn btn-outline" style="width:auto;padding:6px 12px;font-size:13px" onclick="showChangePassword()">改密</button>
       <button class="btn btn-blue" style="width:auto;padding:6px 12px;font-size:13px" onclick="openAddDialog()">+ 新增题目</button>
+	      <button class="btn btn-green" style="width:auto;padding:6px 12px;font-size:13px" onclick="uploadExcelFile()">📤 上传Excel</button>
       <button class="btn btn-green" style="width:auto;padding:6px 12px;font-size:13px" onclick="syncToGitHub()">☁️ 保存到云端</button>
       <button class="btn btn-outline" style="width:auto;padding:6px 12px;font-size:13px" onclick="promptCloudPassword('settings')">⚙️ 云端设置</button>
       <button class="btn btn-outline" style="width:auto;padding:6px 12px;font-size:13px;color:#DC2626;border-color:#DC2626" onclick="adminAuthed=false;navTo('settings')">退出</button>
@@ -1658,8 +1659,8 @@ function renderAdminList() {
 
   html += `<div class="flex-row mb8">
     <input type="text" id="admin-search" placeholder="🔍 搜索题号/内容..." style="flex:2" value="${escapeHtml(adminSearchTerm)}" oninput="adminSearchTerm=this.value;adminPage=1;renderAdminList()">
-    <select style="flex:1" onchange="adminFilterCat=this.value;adminPage=1;renderAdminList()">
-      <option value="">全部类别</option>${cats.map(c => `<option value="${c}" ${adminFilterCat===c?'selected':''}>${c}</option>`).join('')}
+    <select style="flex:1" onchange="adminFilterType=this.value;adminPage=1;renderAdminList()">
+      <option value="">全部题型</option>${types.map(t => `<option value="${t}" ${adminFilterType===t?'selected':''}>${t}</option>`).join('')}
     </select></div>`;
 
   html += `<div class="flex-between mb8">
@@ -1710,6 +1711,88 @@ function openAddDialog() {
   const newQ = { id: maxId + 1, stem: '', A: '', B: '', C: '', D: '', E: '', answer: '', difficulty: '无', qtype: '单选题', category: '' };
   showQuestionEditor(newQ, 'add');
 }
+
+  async function uploadExcelFile() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.xlsx,.xls';
+    input.onchange = async () => {
+      const file = input.files[0];
+      if (!file) return;
+      try {
+        const data = await file.arrayBuffer();
+        const wb = XLSX.read(data, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+        if (rows.length < 2) { alert('Excel格式错误：无数据行'); return; }
+        const headers = rows[0].map(h => String(h||'').trim());
+        const colMap = {};
+        const keyMap = {'题号':'id','题干':'stem','A':'A','B':'B','C':'C','D':'D','E':'E','答案':'answer','难度':'difficulty','题型':'qtype','类别':'category','备注':'note'};
+        headers.forEach((h, i) => { if (keyMap[h]) colMap[keyMap[h]] = i; });
+        if (!('stem' in colMap)) { alert('Excel缺少"题干"列，请检查格式！'); return; }
+
+        let inserted = 0, updated = 0, skipped = 0;
+        let maxId = questions.reduce((m, q) => Math.max(m, q.id), 0);
+        const newQuestions = [];
+
+        for (let r = 1; r < rows.length; r++) {
+          const row = rows[r];
+          const getVal = (key) => { const i = colMap[key]; return i !== undefined ? String(row[i]||'').trim() : ''; };
+          const stem = getVal('stem');
+          if (!stem) { skipped++; continue; }
+
+          const origId = parseInt(getVal('id'));
+          const existing = origId && !isNaN(origId) && questions.find(q => q.id === origId);
+
+          let answer = getVal('answer').toUpperCase();
+          const qtype = getVal('qtype') || '单选题';
+
+          if (!getVal('qtype')) {
+            const letters = answer.replace(/[^A-E]/g, '');
+            if (letters.length >= 2) answer = letters;
+          }
+
+          const q = {
+            id: existing ? origId : (++maxId),
+            stem,
+            A: getVal('A'), B: getVal('B'), C: getVal('C'), D: getVal('D'), E: getVal('E'),
+            answer,
+            difficulty: getVal('difficulty') || '无',
+            qtype,
+            category: getVal('category') || '政治理论',
+            note: getVal('note')
+          };
+
+          if (existing) {
+            Object.assign(existing, q);
+            await dbPut('questions', existing);
+            updated++;
+          } else {
+            newQuestions.push(q);
+            await dbPut('questions', q);
+            inserted++;
+          }
+        }
+
+        questions.push(...newQuestions);
+        questions.sort((a, b) => a.id - b.id);
+        await dbPut('settings', { key: 'questions_version', value: Date.now() });
+        updateStats();
+        renderAdminList();
+
+        let msg = '✅ 导入完成！\n\n新增: ' + inserted + ' 题\n更新: ' + updated + ' 题\n跳过: ' + skipped + ' 题';
+        if (inserted > 0 || updated > 0) {
+          msg += '\n\n是否立即同步到云端？';
+          if (confirm(msg)) { syncToGitHub(); }
+          else { alert('✅ 已导入 ' + (inserted+updated) + ' 题到本地题库\n\n可稍后点击"☁️ 保存到云端"同步'); }
+        } else {
+          alert(msg);
+        }
+      } catch(e) { alert('Excel解析失败: ' + e.message); console.error(e); }
+    };
+    input.click();
+  }
+
 
 function showQuestionEditor(q, mode) {
   const title = mode === 'add' ? '新增题目' : `编辑题目 #${q.id}`;
