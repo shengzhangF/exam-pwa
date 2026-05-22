@@ -175,10 +175,6 @@ textarea{min-height:60px;resize:vertical}
       <div class="icon-box" style="background:#E8EAF6">📊</div>
       <div class="txt"><h3>详细统计</h3><p>分析学习数据</p></div>
     </div>
-    <div class="menu-card" onclick="navTo('import')">
-      <div class="icon-box" style="background:#F3E5F5">📥</div>
-      <div class="txt"><h3>导入导出</h3><p>数据备份同步</p></div>
-    </div>
   </div>
   <div style="height:20px"></div>
 </div>
@@ -268,15 +264,6 @@ textarea{min-height:60px;resize:vertical}
     </div>
     <div class="card mt12">
       <h3 style="margin-bottom:8px">📦 数据管理</h3>
-      <button class="btn btn-outline mb8" onclick="document.getElementById('csv-file').click()">📥 导入 Excel/CSV 题库</button>
-      <input type="file" id="csv-file" accept=".csv,.xlsx,.xls" class="hidden" onchange="importFile(this)">
-      <button class="btn btn-outline mb8" onclick="exportCSV()">📤 导出 CSV 题库</button>
-      <button class="btn btn-outline mb8" onclick="exportSyncData()">📤 导出学习数据 (JSON)</button>
-      <button class="btn btn-outline mb8" onclick="showImportSync()">📥 导入学习数据 (JSON)</button>
-      <div id="sync-import-area" class="hidden mt8">
-        <textarea id="sync-json" rows="4" placeholder="粘贴 JSON 数据..." class="mb8"></textarea>
-        <button class="btn btn-blue" onclick="importSyncData()">确认导入</button>
-      </div>
       <button class="btn btn-outline mb8" style="color:#DC2626;border-color:#DC2626" onclick="if(confirm('确定清除所有答题历史？'))clearHistory()">🗑️ 清除答题历史</button>
       <button class="btn btn-outline" style="color:#DC2626;border-color:#DC2626" onclick="if(confirm('确定清除所有用户数据？此操作不可恢复！'))resetAll()">⚠️ 清除所有数据</button>
     </div>
@@ -285,30 +272,19 @@ textarea{min-height:60px;resize:vertical}
       <p class="text-sm mb8">管理员可编辑修改题库内容</p>
       <button class="btn btn-dark" onclick="showAdminGate()">进入管理</button>
     </div>
-    <div class="card mt12">
-      <h3 style="margin-bottom:8px">☁️ 云端同步</h3>
-      <p class="text-sm mb8">配置后可在题库管理中一键保存到 GitHub，所有人自动更新</p>
-      <label class="text-sm">GitHub Token</label>
-      <input type="password" id="set-gh-token" class="mb8" placeholder="ghp_xxxxxxxx">
-      <label class="text-sm">仓库名</label>
-      <input type="text" id="set-gh-repo" class="mb12" placeholder="用户名/仓库名 (如 shengzhangf/exam-pwa)">
-      <button class="btn btn-dark" onclick="saveSettings()">保存设置</button>
-    </div>
-    <div class="card mt12"><div style="text-align:center"><strong>刷题神器 v5.1 PWA</strong><p class="text-sm">基于艾宾浩斯遗忘曲线的智能刷题工具</p><p class="text-xs mt8">支持 iOS / Android 离线使用</p></div></div>
+    <div class="card mt12"><div style="text-align:center"><strong>刷题神器 v5.2 PWA</strong><p class="text-sm">基于艾宾浩斯遗忘曲线的智能刷题工具</p><p class="text-xs mt8">支持 iOS / Android 离线使用</p></div></div>
   </div>
 </div>
 
-<!-- ========== IMPORT PAGE ========== -->
+<!-- ========== IMPORT PAGE ==========-->
 <div class="page" id="page-import">
   <div class="header" style="position:sticky;top:0">
     <span style="font-size:20px;cursor:pointer" onclick="navTo('home')">← 返回</span>
-    <span style="font-weight:600">导入导出</span>
+    <span style="font-weight:600">数据管理</span>
     <span></span>
   </div>
   <div class="p16">
-    <div class="card"><h3>📥 导入 Excel/CSV 题库</h3><p class="text-sm mb8">支持 .xlsx .csv 格式，需管理密码</p><button class="btn btn-blue" onclick="document.getElementById('csv-file2').click()">选择 Excel/CSV 文件</button><input type="file" id="csv-file2" accept=".csv,.xlsx,.xls" class="hidden" onchange="importFile(this)"></div>
-    <div class="card mt12"><h3>📤 导出 CSV</h3><p class="text-sm mb8">导出全部题库为 CSV</p><button class="btn btn-dark" onclick="exportCSV()">导出 CSV</button></div>
-    <div class="card mt12"><h3>🔄 数据同步</h3><p class="text-sm mb8">导出/导入学习数据 (JSON)</p><button class="btn btn-dark mb8" onclick="exportSyncData()">导出学习数据</button><button class="btn btn-outline" onclick="showImportSync()">导入学习数据</button><div id="sync-import-area2" class="hidden mt8"><textarea id="sync-json2" rows="4" placeholder="粘贴 JSON 数据..." class="mb8"></textarea><button class="btn btn-blue" onclick="importSyncData()">确认导入</button></div></div>
+    <div class="card" style="text-align:center"><p style="font-size:48px">🗑️</p><h3>清除数据</h3><p class="text-sm mt8 mb8">清除所有答题历史或全部用户数据</p><button class="btn btn-outline mb8" style="color:#DC2626;border-color:#DC2626;width:100%" onclick="if(confirm('确定清除所有答题历史？')){clearHistory();navTo('home');}">🗑️ 清除答题历史</button><button class="btn btn-outline" style="color:#DC2626;border-color:#DC2626;width:100%" onclick="if(confirm('确定清除所有用户数据？此操作不可恢复！')){resetAll();navTo('home');}">⚠️ 清除所有数据</button></div>
   </div>
 </div>
 
@@ -1276,21 +1252,15 @@ async function loadSettings() {
   const url = await dbGet('settings', 'apiUrl');
   const key = await dbGet('settings', 'apiKey');
   const model = await dbGet('settings', 'aiModel');
-  const ghToken = await dbGet('settings', 'github_token');
-  const ghRepo = await dbGet('settings', 'github_repo');
   if (url) document.getElementById('set-url').value = url.value;
   if (key) document.getElementById('set-key').value = key.value;
   if (model) document.getElementById('set-model').value = model.value;
-  if (ghToken) document.getElementById('set-gh-token').value = ghToken.value;
-  if (ghRepo) document.getElementById('set-gh-repo').value = ghRepo.value;
 }
 
 async function saveSettings() {
   await dbPut('settings', { key: 'apiUrl', value: document.getElementById('set-url').value });
   await dbPut('settings', { key: 'apiKey', value: document.getElementById('set-key').value });
   await dbPut('settings', { key: 'aiModel', value: document.getElementById('set-model').value });
-  await dbPut('settings', { key: 'github_token', value: document.getElementById('set-gh-token').value });
-  await dbPut('settings', { key: 'github_repo', value: document.getElementById('set-gh-repo').value });
   alert('设置已保存');
 }
 
@@ -1542,8 +1512,6 @@ function renderAdminList() {
     <div class="flex-row">
       <button class="btn btn-outline" style="width:auto;padding:6px 12px;font-size:13px" onclick="showChangePassword()">改密</button>
       <button class="btn btn-blue" style="width:auto;padding:6px 12px;font-size:13px" onclick="openAddDialog()">+ 新增题目</button>
-      <button class="btn btn-green" style="width:auto;padding:6px 12px;font-size:13px" onclick="syncToGitHub()">☁️ 保存到云端</button>
-      <button class="btn btn-outline" style="width:auto;padding:6px 12px;font-size:13px" onclick="exportQuestionsJSON()">📤 导出JSON</button>
       <button class="btn btn-outline" style="width:auto;padding:6px 12px;font-size:13px;color:#DC2626;border-color:#DC2626" onclick="adminAuthed=false;navTo('settings')">退出</button>
     </div></div>`;
 
@@ -1692,65 +1660,6 @@ async function deleteQuestion(qid) {
   updateStats();
 }
 
-async function syncToGitHub() {
-  const tokenObj = await dbGet('settings', 'github_token');
-  const repoObj = await dbGet('settings', 'github_repo');
-  const token = tokenObj ? tokenObj.value : '';
-  const repo = repoObj ? repoObj.value : '';
-
-  if (!token || !repo) {
-    alert('请先在设置页面配置 GitHub Token 和仓库名\n\n获取 Token: GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens\n权限: Contents (Read and write)\n仓库: 选择 exam-pwa');
-    return;
-  }
-
-  if (!confirm(`将当前题库 (${questions.length} 题) 保存到 ${repo}？\n保存后约1-2分钟所有用户可看到更新。`)) return;
-
-  try {
-    const sorted = [...questions].sort((a, b) => a.id - b.id);
-    const jsonStr = JSON.stringify(sorted, null, 2);
-    // Base64 encode for GitHub API
-    const content = btoa(unescape(encodeURIComponent(jsonStr)));
-
-    const apiUrl = `https://api.github.com/repos/${repo}/contents/questions.json`;
-
-    // Get current file SHA
-    const getResp = await fetch(apiUrl, {
-      headers: { Authorization: `token ${token}`, Accept: 'application/vnd.github.v3+json' }
-    });
-    const fileInfo = await getResp.json();
-    if (!getResp.ok) throw new Error(fileInfo.message || '获取文件信息失败');
-
-    // Commit update
-    const body = {
-      message: 'Update question bank (' + sorted.length + ' questions)',
-      content: content,
-      sha: fileInfo.sha,
-      branch: fileInfo.branch || 'main'
-    };
-
-    const putResp = await fetch(apiUrl, {
-      method: 'PUT',
-      headers: { Authorization: `token ${token}`, Accept: 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-
-    if (putResp.ok) {
-      alert('✅ 已保存到云端！GitHub Pages 正在自动部署，约1-2分钟后刷新网页即可看到更新。');
-    } else {
-      const errData = await putResp.json();
-      throw new Error(errData.message || '未知错误');
-    }
-  } catch(e) {
-    alert('保存失败: ' + e.message + '\n\n请检查 Token 是否有仓库写入权限。');
-  }
-}
-
-function exportQuestionsJSON() {
-  const sorted = [...questions].sort((a, b) => a.id - b.id);
-  const json = JSON.stringify(sorted, null, 2);
-  downloadFile('questions_updated.json', json, 'application/json');
-  alert(`已导出 ${sorted.length} 题。将此文件重命名为 questions.json 并替换服务器上的文件即可更新所有人的题库。`);
-}
 
 function escapeHtml(str) {
   const d = document.createElement('div');
