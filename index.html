@@ -1780,11 +1780,19 @@ function openAddDialog() {
           const existing = origId && !isNaN(origId) && questions.find(q => q.id === origId);
 
           let answer = getVal('answer').toUpperCase();
-          const qtype = getVal('qtype') || '单选题';
+          let qtype = getVal('qtype') || '';
 
-          if (!getVal('qtype')) {
-            const letters = answer.replace(/[^A-E]/g, '');
-            if (letters.length >= 2) answer = letters;
+          // Auto-detect type from answer if not specified
+          if (!qtype) {
+            if (answer === '对' || answer === '错' || answer === '正确' || answer === '错误') {
+              qtype = '判断题';
+              if (answer === '正确') answer = '对';
+              if (answer === '错误') answer = '错';
+            } else {
+              const letters = answer.replace(/[^A-E]/g, '');
+              qtype = letters.length >= 2 ? '多选题' : '单选题';
+              answer = letters || answer;
+            }
           }
 
           const q = {
