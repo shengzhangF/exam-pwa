@@ -1412,6 +1412,105 @@ function downloadFile(filename, content, mimeType) {
 const ADMIN_DEFAULT_PASSWORD = 'admin123';
 let adminAuthed = false;
 
+// ==================== CLOUD SYNC ====================
+async function promptCloudPassword(action) {
+  // Hardcoded cloud password - cannot be changed via UI
+  const CLOUD_PWD = atob('enMxMjM0NTY=');
+  const input = prompt('请输入云端操作密码：');
+  if (!input) return;
+  if (input !== CLOUD_PWD) { alert('密码错误！'); return; }
+  if (action === 'sync') syncToGitHub();
+  else if (action === 'settings') showCloudSettings();
+}
+
+function showCloudSettings() {
+  const html = `<div class="modal-overlay" onclick="if(event.target===this)this.remove()">
+    <div class="modal-box">
+      <h3 style="margin-bottom:12px">☁️ 云端同步设置</h3>
+      <label class="text-sm">GitHub Token</label>
+      <input type="password" id="cloud-gh-token" class="mb8" placeholder="ghp_xxxxxxxx">
+      <label class="text-sm">仓库名</label>
+      <input type="text" id="cloud-gh-repo" class="mb12" placeholder="用户名/仓库名 (如 shengzhangf/exam-pwa)">
+      <p class="text-xs mb12" style="color:#DC2626">Token 和仓库名将保存在本地浏览器中</p>
+      <div class="flex-row">
+        <button class="btn btn-dark" style="flex:1" onclick="saveCloudSettings()">保存</button>
+        <button class="btn btn-outline" style="flex:1" onclick="event.target.closest('.modal-overlay').remove()">取消</button>
+      </div>
+    </div></div>`;
+  const overlay = document.createElement('div');
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay.firstElementChild);
+  // Pre-fill existing values
+  dbGet('settings', 'github_token').then(t => {
+    if (t) { const el = document.getElementById('cloud-gh-token'); if (el) el.value = t.value; }
+  });
+  dbGet('settings', 'github_repo').then(r => {
+    if (r) { const el = document.getElementById('cloud-gh-repo'); if (el) el.value = r.value; }
+  });
+}
+
+async function saveCloudSettings() {
+  const token = document.getElementById('cloud-gh-token').value.trim();
+  const repo = document.getElementById('cloud-gh-repo').value.trim();
+  if (!token || !repo) { alert('请填写 Token 和仓库名'); return; }
+  await dbPut('settings', { key: 'github_token', value: token });
+  await dbPut('settings', { key: 'github_repo', value: repo });
+  document.querySelector('.modal-overlay').remove();
+  alert('云端设置已保存');
+}
+
+async function syncToGitHub() {
+  const tokenObj = await dbGet('settings', 'github_token');
+  const repoObj = await dbGet('settings', 'github_repo');
+  const token = tokenObj ? tokenObj.value : '';
+  const repo = repoObj ? repoObj.value : '';
+
+  if (!token || !repo) {
+    alert('请先点击"云端设置"配置 GitHub Token 和仓库名');
+    return;
+  }
+
+  if (!confirm(`将当前题库 (${questions.length} 题) 保存到 ${repo}？`)) return;
+
+  try {
+    const sorted = [...questions].sort((a, b) => a.id - b.id);
+    const jsonStr = JSON.stringify(sorted, null, 2);
+    const content = btoa(unescape(encodeURIComponent(jsonStr)));
+
+    const apiUrl = `https://api.github.com/repos/${repo}/contents/questions.json`;
+
+    // Get current file SHA
+    const getResp = await fetch(apiUrl, {
+      headers: { Authorization: `token ${token}`, Accept: 'application/vnd.github.v3+json' }
+    });
+    const fileInfo = await getResp.json();
+    if (!getResp.ok) throw new Error(fileInfo.message || '获取文件信息失败');
+
+    // Commit update
+    const body = {
+      message: 'Update question bank (' + sorted.length + ' questions)',
+      content: content,
+      sha: fileInfo.sha,
+      branch: fileInfo.branch || 'main'
+    };
+
+    const putResp = await fetch(apiUrl, {
+      method: 'PUT',
+      headers: { Authorization: `token ${token}`, Accept: 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    if (putResp.ok) {
+      alert('✅ 已保存到云端！约1-2分钟后刷新即可看到更新。');
+    } else {
+      const errData = await putResp.json();
+      throw new Error(errData.message || '未知错误');
+    }
+  } catch(e) {
+    alert('保存失败: ' + e.message + '\n\n请检查 Token 是否有仓库写入权限。');
+  }
+}
+
 async function showAdminGate() {
   const savedPwd = await dbGet('settings', 'admin_password');
   const pwd = savedPwd ? savedPwd.value : ADMIN_DEFAULT_PASSWORD;
@@ -1512,6 +1611,8 @@ function renderAdminList() {
     <div class="flex-row">
       <button class="btn btn-outline" style="width:auto;padding:6px 12px;font-size:13px" onclick="showChangePassword()">改密</button>
       <button class="btn btn-blue" style="width:auto;padding:6px 12px;font-size:13px" onclick="openAddDialog()">+ 新增题目</button>
+      <button class="btn btn-green" style="width:auto;padding:6px 12px;font-size:13px" onclick="promptCloudPassword('sync')">☁️ 保存到云端</button>
+      <button class="btn btn-outline" style="width:auto;padding:6px 12px;font-size:13px" onclick="promptCloudPassword('settings')">⚙️ 云端设置</button>
       <button class="btn btn-outline" style="width:auto;padding:6px 12px;font-size:13px;color:#DC2626;border-color:#DC2626" onclick="adminAuthed=false;navTo('settings')">退出</button>
     </div></div>`;
 
