@@ -796,7 +796,13 @@ async function submitTimedExam() {
     if (!correct) {
       const today = getToday();
       const existing = await dbGet('ebbinghaus', q.id);
-      if (!existing) {
+      if (existing) {
+        existing.reviewStage = 0;
+        existing.nextReviewDate = addDays(today, 1);
+        existing.lastReviewDate = today;
+        existing.reviewCount = (existing.reviewCount || 0) + 1;
+        await dbPut('ebbinghaus', existing);
+      } else {
         await dbPut('ebbinghaus', { questionId: q.id, reviewStage: 0, nextReviewDate: addDays(today, 1), lastReviewDate: today, reviewCount: 0 });
       }
     }
@@ -903,7 +909,13 @@ async function submitMockExam() {
     await dbPut('history', { questionId: q.id, userAnswer: userAns, correct, timestamp: Date.now() });
     if (!correct) {
       const today = getToday();
-      if (!(await dbGet('ebbinghaus', q.id))) {
+      if (existing) {
+        existing.reviewStage = 0;
+        existing.nextReviewDate = addDays(today, 1);
+        existing.lastReviewDate = today;
+        existing.reviewCount = (existing.reviewCount || 0) + 1;
+        await dbPut('ebbinghaus', existing);
+      } else {
         await dbPut('ebbinghaus', { questionId: q.id, reviewStage: 0, nextReviewDate: addDays(today, 1), lastReviewDate: today, reviewCount: 0 });
       }
     }
