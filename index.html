@@ -1114,7 +1114,7 @@ function renderBrowse() {
   html += `<div class="flex-row mt12" style="justify-content:center;gap:12px">`;
   html += `<button class="btn btn-outline" style="width:auto" onclick="browsePage=Math.max(1,browsePage-1);renderBrowse()" ${browsePage===1?'disabled':''}>← 上一页</button>`;
   html += `<span class="text-sm">${browsePage} / ${totalPages||1}</span>`;
-  html += `<button class="btn btn-outline" style="width:auto" onclick="browsePage=Math.min(totalPages,browsePage+1);renderBrowse()" ${browsePage>=totalPages?'disabled':''}>下一页 →</button></div>`;
+  html += `<button class="btn btn-outline" style="width:auto" onclick="browsePage=Math.min(${totalPages||1},browsePage+1);renderBrowse()" ${browsePage>=totalPages?'disabled':''}>下一页 →</button></div>`;
 
   document.getElementById('browse-list').innerHTML = html;
 }
@@ -1459,22 +1459,32 @@ async function saveCloudSettings() {
   alert('云端设置已保存');
 }
 
-function questionsToCSV() {
+function questionsToXLSX() {
   const sorted = [...questions].sort((a, b) => a.id - b.id);
-  // BOM for Excel UTF-8 compatibility
-  let csv = '﻿题号,题干,A,B,C,D,E,答案,难度,题型,类别\n';
+  const rows = [['题号', '题干', 'A', 'B', 'C', 'D', 'E', '答案', '难度', '题型', '类别']];
   sorted.forEach(q => {
-    const row = [q.id, q.stem, q.A, q.B, q.C, q.D, q.E, q.answer, q.difficulty, q.qtype, q.category];
-    csv += row.map(v => '"' + (v || '').replace(/"/g, '""') + '"').join(',') + '\n';
+    rows.push([q.id, q.stem, q.A||'', q.B||'', q.C||'', q.D||'', q.E||'', q.answer, q.difficulty, q.qtype, q.category||'']);
   });
-  return csv;
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  // Set column widths for readability
+  ws['!cols'] = [
+    {wch:6},{wch:40},{wch:20},{wch:20},{wch:20},{wch:20},{wch:15},{wch:10},{wch:6},{wch:8},{wch:12}
+  ];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '题库');
+  return XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+}
+
+function uint8ToBase64(arr) {
+  let binary = '';
+  for (let i = 0; i < arr.length; i++) binary += String.fromCharCode(arr[i]);
+  return btoa(binary);
 }
 
 async function pushFileToGitHub(token, repo, path, content, message) {
   const apiUrl = `https://api.github.com/repos/${repo}/contents/${path}`;
   const headers = { Authorization: `token ${token}`, Accept: 'application/vnd.github.v3+json' };
 
-  // Try to get existing file SHA
   let sha = null, branch = 'main';
   try {
     const getResp = await fetch(apiUrl, { headers });
@@ -1487,7 +1497,7 @@ async function pushFileToGitHub(token, repo, path, content, message) {
 
   const body = {
     message: message,
-    content: btoa(unescape(encodeURIComponent(content))),
+    content: content,
     branch: branch
   };
   if (sha) body.sha = sha;
@@ -1502,7 +1512,6 @@ async function pushFileToGitHub(token, repo, path, content, message) {
     const err = await putResp.json();
     throw new Error(err.message || '未知错误');
   }
-  return putResp.ok;
 }
 
 async function syncToGitHub() {
@@ -1516,21 +1525,21 @@ async function syncToGitHub() {
     return;
   }
 
-  if (!confirm(`将当前题库 (${questions.length} 题) 保存到 ${repo}？\n\n将同时推送 questions.csv (Excel格式) 和 questions.json (PWA格式)`)) return;
+  if (!confirm(`将当前题库 (${questions.length} 题) 保存到 ${repo}？\n\n将推送 questions.xlsx (Excel格式) 和 questions.json (PWA数据)`)) return;
 
   try {
     const sorted = [...questions].sort((a, b) => a.id - b.id);
     const msg = 'Update question bank (' + sorted.length + ' questions)';
 
-    // Push CSV (Excel format for easy editing)
-    const csv = questionsToCSV();
-    await pushFileToGitHub(token, repo, 'questions.csv', csv, msg);
+    // Push Excel file
+    const xlsxData = questionsToXLSX();
+    await pushFileToGitHub(token, repo, 'questions.xlsx', uint8ToBase64(xlsxData), msg);
 
-    // Push JSON (PWA data format)
-    const json = JSON.stringify(sorted, null, 2);
+    // Push JSON file
+    const json = btoa(unescape(encodeURIComponent(JSON.stringify(sorted, null, 2))));
     await pushFileToGitHub(token, repo, 'questions.json', json, msg);
 
-    alert('✅ 已保存到云端！\n\n📊 questions.csv — Excel 可直接打开编辑\n📄 questions.json — PWA 自动读取\n\n约1-2分钟后刷新即可看到更新。');
+    alert('✅ 已保存到云端！\n\n📊 questions.xlsx — Excel 可直接打开编辑\n📄 questions.json — PWA 自动读取\n\n约1-2分钟后刷新即可看到更新。');
   } catch(e) {
     alert('保存失败: ' + e.message + '\n\n请检查 Token 是否有仓库写入权限。');
   }
@@ -1636,7 +1645,7 @@ function renderAdminList() {
     <div class="flex-row">
       <button class="btn btn-outline" style="width:auto;padding:6px 12px;font-size:13px" onclick="showChangePassword()">改密</button>
       <button class="btn btn-blue" style="width:auto;padding:6px 12px;font-size:13px" onclick="openAddDialog()">+ 新增题目</button>
-      <button class="btn btn-green" style="width:auto;padding:6px 12px;font-size:13px" onclick="promptCloudPassword('sync')">☁️ 保存到云端</button>
+      <button class="btn btn-green" style="width:auto;padding:6px 12px;font-size:13px" onclick="syncToGitHub()">☁️ 保存到云端</button>
       <button class="btn btn-outline" style="width:auto;padding:6px 12px;font-size:13px" onclick="promptCloudPassword('settings')">⚙️ 云端设置</button>
       <button class="btn btn-outline" style="width:auto;padding:6px 12px;font-size:13px;color:#DC2626;border-color:#DC2626" onclick="adminAuthed=false;navTo('settings')">退出</button>
     </div></div>`;
@@ -1679,7 +1688,7 @@ function renderAdminList() {
   html += `<div class="flex-row mt12" style="justify-content:center;gap:12px">
     <button class="btn btn-outline" style="width:auto" onclick="adminPage=Math.max(1,adminPage-1);renderAdminList()" ${adminPage===1?'disabled':''}>← 上一页</button>
     <span class="text-sm">${adminPage} / ${totalPages||1}</span>
-    <button class="btn btn-outline" style="width:auto" onclick="adminPage=Math.min(totalPages,adminPage+1);renderAdminList()" ${adminPage>=totalPages?'disabled':''}>下一页 →</button></div>`;
+    <button class="btn btn-outline" style="width:auto" onclick="adminPage=Math.min(${totalPages||1},adminPage+1);renderAdminList()" ${adminPage>=totalPages?'disabled':''}>下一页 →</button></div>`;
 
   document.getElementById('admin-content').innerHTML = html;
 }
