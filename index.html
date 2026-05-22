@@ -199,9 +199,14 @@ textarea{min-height:60px;resize:vertical}
     <span></span>
   </div>
   <div class="p16"><input type="text" id="browse-search" placeholder="🔍 搜索题目..." oninput="renderBrowse()"></div>
-  <div class="p16 flex-row" style="flex-wrap:wrap">
-    <select id="browse-cat" onchange="renderBrowse()" style="width:auto;flex:1"><option value="">全部类别</option></select>
-    <select id="browse-diff" onchange="renderBrowse()" style="width:auto;flex:1"><option value="">全部难度</option></select>
+      <div class="p16 flex-row" style="flex-wrap:wrap">
+        <select id="browse-type" onchange="renderBrowse()" style="width:auto;flex:1">
+          <option value="">全部题型</option>
+          <option value="单选题">单选题</option>
+          <option value="多选题">多选题</option>
+          <option value="判断题">判断题</option>
+        </select>
+      </div>
   </div>
   <div id="browse-list" class="p16"></div>
   <div class="p16 flex-row" id="browse-pager" style="justify-content:center"></div>
@@ -532,7 +537,7 @@ function renderQuestion() {
     <span class="q-type" style="background:${q.qtype==='多选题'?'#FFF3E0':q.qtype==='判断题'?'#E3F2FD':'#E8F5E9'};color:${q.qtype==='多选题'?'#E65100':q.qtype==='判断题'?'#1565C0':'#2E7D32'}">${q.qtype||'单选题'}</span>
     <span class="text-sm" style="margin-left:8px">题目 ${q.id}</span>`;
 
-  if (currentMode === 'sequential' || currentMode === 'wrong') {
+  if (currentMode === 'sequential' || currentMode === 'wrong' || currentMode === 'browse') {
     html += `<span class="text-sm" style="float:right">${currentQIndex+1}/${currentQuestionList.length}</span>`;
   }
 
@@ -584,8 +589,11 @@ function renderQuestion() {
     html += `<div class="card mt12" style="background:${isCorrect?'#E8F5E9':'#FFEBEE'}">
       <div class="flex-row"><span style="font-size:24px">${isCorrect?'✓':'✗'}</span><div><strong>${isCorrect?'回答正确！':'回答错误'}</strong>${!isCorrect?`<p class="text-sm">正确答案: ${q.answer}</p>`:''}</div></div>
     </div>`;
+    if (q.note && !isCorrect) {
+      html += `<div class="card mt8" style="background:#FFF8E1;border-left:4px solid #FF9800"><p class="text-sm" style="color:#E65100"><strong>📝 解析：</strong>${q.note}</p></div>`;
+    }
     html += `<div class="flex-row mt12">`;
-    if (currentMode === 'sequential' || currentMode === 'wrong') {
+    if (currentMode === 'sequential' || currentMode === 'wrong' || currentMode === 'browse') {
       html += `<button class="btn btn-outline" onclick="prevQuestion()" ${currentQIndex===0?'disabled':''}>← 上一题</button>`;
     }
     html += `<button class="btn btn-blue" style="flex:1" onclick="nextQuestion()">下一题 →</button></div>`;
@@ -649,7 +657,7 @@ function nextQuestion() {
   selectedAnswers = new Set();
   showResult = false;
   if (currentQIndex >= currentQuestionList.length) {
-    if (currentMode === 'sequential' || currentMode === 'wrong') {
+    if (currentMode === 'sequential' || currentMode === 'wrong' || currentMode === 'browse') {
       document.getElementById('prac-question').innerHTML = '<div class="p16" style="text-align:center"><p style="font-size:48px">🎉</p><h3>全部完成！</h3><button class="btn btn-blue mt16" onclick="navTo(\'home\')">返回首页</button></div>';
       return;
     }
@@ -1080,22 +1088,15 @@ function nextEbbinghausQuestion() {
 }
 
 // ==================== BROWSE ====================
-function initBrowseFilters() {
-  const cats = [...new Set(questions.map(q => q.category).filter(Boolean))].sort();
-  const diffs = [...new Set(questions.map(q => q.difficulty).filter(Boolean))].sort();
-  document.getElementById('browse-cat').innerHTML = '<option value="">全部类别</option>' + cats.map(c => `<option>${c}</option>`).join('');
-  document.getElementById('browse-diff').innerHTML = '<option value="">全部难度</option>' + diffs.map(d => `<option>${d}</option>`).join('');
-}
+	function initBrowseFilters() {}
 
 function renderBrowse() {
   const search = (document.getElementById('browse-search')?.value || '').toLowerCase();
-  const cat = document.getElementById('browse-cat')?.value || '';
-  const diff = document.getElementById('browse-diff')?.value || '';
+  const qtype = document.getElementById('browse-type')?.value || '';
 
   let filtered = questions;
   if (search) filtered = filtered.filter(q => q.stem.includes(search) || (q.category||'').includes(search));
-  if (cat) filtered = filtered.filter(q => q.category === cat);
-  if (diff) filtered = filtered.filter(q => q.difficulty === diff);
+  if (qtype) filtered = filtered.filter(q => q.qtype === qtype);
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   if (browsePage > totalPages) browsePage = totalPages || 1;
@@ -1123,8 +1124,13 @@ function browseQuestion(qid) {
   currentMode = 'browse';
   const q = questions.find(q => q.id === qid);
   if (!q) return;
-  currentQuestionList = [q];
-  currentQIndex = 0;
+  const search = (document.getElementById('browse-search')?.value || '').toLowerCase();
+  const qtype = document.getElementById('browse-type')?.value || '';
+  let filtered = questions;
+  if (search) filtered = filtered.filter(q => q.stem.includes(search) || (q.category||'').includes(search));
+  if (qtype) filtered = filtered.filter(q => q.qtype === qtype);
+  currentQuestionList = filtered;
+  currentQIndex = filtered.findIndex(q => q.id === qid);
   selectedAnswers = new Set();
   showResult = false;
   navTo('practice');
