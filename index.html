@@ -259,13 +259,6 @@ textarea{min-height:60px;resize:vertical}
     <span></span>
   </div>
   <div class="p16">
-    <div class="card"><h3 style="margin-bottom:8px">🧠 AI 分析设置</h3>
-      <p class="text-sm mb12">配置 AI API 后为错题生成深度分析</p>
-      <label class="text-sm">API 地址</label><input type="text" id="set-url" class="mb8" placeholder="https://api.deepseek.com/v1/chat/completions">
-      <label class="text-sm">API Key</label><input type="password" id="set-key" class="mb8" placeholder="sk-...">
-      <label class="text-sm">模型名称</label><input type="text" id="set-model" class="mb12" placeholder="deepseek-chat">
-      <button class="btn btn-dark" onclick="saveSettings()">保存设置</button>
-    </div>
     <div class="card mt12">
       <h3 style="margin-bottom:8px">📦 数据管理</h3>
       <button class="btn btn-outline mb8" style="color:#DC2626;border-color:#DC2626" onclick="if(confirm('确定清除所有答题历史？'))clearHistory()">🗑️ 清除答题历史</button>
@@ -380,6 +373,7 @@ async function loadQuestions() {
 
   // Fallback to cache
   if (cached.length > 0) { questions = cached; }
+  loadFavSet();
 }
 
 function getStemPreview(q) { return q.stem.length > 30 ? q.stem.substring(0, 30) + '...' : q.stem; }
@@ -627,11 +621,17 @@ async function submitAnswer() {
     timestamp: Date.now()
   });
 
-  // Ebbinghaus: wrong answers get added to review
+  // Ebbinghaus: wrong answers get added/reset in review
   if (!isCorrect) {
     const today = getToday();
     const existing = await dbGet('ebbinghaus', q.id);
-    if (!existing) {
+    if (existing) {
+      existing.reviewStage = 0;
+      existing.nextReviewDate = addDays(today, 1);
+      existing.lastReviewDate = today;
+      existing.reviewCount = (existing.reviewCount || 0) + 1;
+      await dbPut('ebbinghaus', existing);
+    } else {
       await dbPut('ebbinghaus', {
         questionId: q.id,
         reviewStage: 0,
@@ -648,7 +648,6 @@ async function submitAnswer() {
 
   showResult = true;
   renderQuestion();
-  loadFavSet();
   updateStats();
   updateEbbBadge();
 }
@@ -1258,15 +1257,16 @@ async function renderStatistics() {
 
   let html = `<div class="stats-card" style="margin:10px 0"><div class="stat-item"><span class="stat-val">${questions.length}</span><span class="stat-lbl">题库</span></div><div class="stat-item"><span class="stat-val">${correct}</span><span class="stat-lbl">正确</span></div><div class="stat-item"><span class="stat-val">${acc.toFixed(0)}%</span><span class="stat-lbl">正确率</span></div></div>`;
 
-  // Per-difficulty stats
-  const diffs = ['简单', '中等', '困难'];
-  html += `<div class="card"><h3>难度统计</h3>`;
-  diffs.forEach(d => {
-    const qs = questions.filter(q => q.difficulty === d);
+  // Per-type stats
+  const types = ['单选题', '多选题', '判断题'];
+  const typeColors = { '单选题': '#2E7D32', '多选题': '#E65100', '判断题': '#1565C0' };
+  html += `<div class="card"><h3>题型统计</h3>`;
+  types.forEach(t => {
+    const qs = questions.filter(q => q.qtype === t);
     const h = hist.filter(h => qs.some(q => q.id === h.questionId));
     const c = h.filter(h => h.correct).length;
     const da = h.length > 0 ? Math.round(c / h.length * 100) : 0;
-    html += `<div class="flex-between mb8"><span>${d}</span><span style="color:${da>=80?'#4CAF50':da>=60?'#F59E0B':'#EF4444'};font-weight:600">${da}%</span><span class="text-xs">${c}/${h.length}</span></div>`;
+    html += `<div class="flex-between mb8"><span style="color:${typeColors[t]};font-weight:600">${t}</span><span>题库 ${qs.length} 题</span><span style="color:${da>=80?'#4CAF50':da>=60?'#F59E0B':'#EF4444'};font-weight:600">${da}%</span><span class="text-xs">${c}/${h.length}</span></div>`;
   });
   html += `</div>`;
 
