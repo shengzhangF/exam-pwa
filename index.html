@@ -1,0 +1,1776 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="刷题神器">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231E40AF'/><text x='50' y='65' text-anchor='middle' font-size='50' fill='white'>📚</text></svg>">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<title>刷题神器</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#F3F4F6;color:#1F2937;padding-bottom:75px;overflow-x:hidden;user-select:none}
+.app{max-width:480px;margin:0 auto;min-height:100vh;background:#F9FAFB;position:relative}
+
+/* Header */
+.header{padding:20px 20px 10px;display:flex;justify-content:space-between;align-items:center;background:#F9FAFB;position:sticky;top:0;z-index:10}
+.header h1{font-size:22px;font-weight:800;color:#111827}
+.header p{font-size:13px;color:#6B7280;margin-top:2px}
+
+/* Stats Card */
+.stats-card{margin:10px 16px;padding:18px;background:linear-gradient(135deg,#4F46E5,#7C3AED);border-radius:18px;color:#fff;display:flex;justify-content:space-around;box-shadow:0 8px 16px rgba(79,70,229,0.3)}
+.stat-item{text-align:center}
+.stat-val{font-size:22px;font-weight:700}
+.stat-lbl{font-size:11px;opacity:.85;margin-top:3px}
+
+/* Section */
+.section-title{padding:16px 20px 10px;font-size:17px;font-weight:700;color:#111827}
+
+/* Grid Menu */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px}
+.menu-card{background:#fff;padding:16px;border-radius:14px;display:flex;align-items:center;box-shadow:0 2px 6px rgba(0,0,0,0.04);cursor:pointer;transition:transform .1s}
+.menu-card:active{transform:scale(.97)}
+.icon-box{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;margin-right:12px;flex-shrink:0}
+.txt h3{font-size:14px;font-weight:600;color:#374151}
+.txt p{font-size:11px;color:#9CA3AF;margin-top:2px}
+
+/* Exam card */
+.exam-card{background:#fff;margin:0 16px 10px;padding:16px;border-radius:14px;box-shadow:0 2px 6px rgba(0,0,0,0.04);cursor:pointer;display:flex;align-items:center}
+.exam-card .icon-box{width:42px;height:42px}
+.chevron{color:#9CA3AF;font-size:18px;margin-left:auto}
+
+/* Chips */
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{padding:8px 16px;background:#F3F4F6;border-radius:50px;font-size:13px;border:none;cursor:pointer;color:#4B5563;font-weight:500;white-space:nowrap}
+.chip.active{background:#111827;color:#fff}
+
+/* Buttons */
+.btn{width:100%;padding:14px;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+.btn-dark{background:#111827;color:#fff}
+.btn-blue{background:#1E40AF;color:#fff}
+.btn-red{background:#DC2626;color:#fff}
+.btn-green{background:#16A34A;color:#fff}
+.btn-outline{background:#fff;border:1.5px solid #D1D5DB;color:#374151}
+
+/* Bottom Nav */
+.bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:#fff;height:68px;display:flex;justify-content:space-around;align-items:center;border-top:1px solid #E5E7EB;z-index:100;padding-bottom:env(safe-area-inset-bottom)}
+.nav-item{display:flex;flex-direction:column;align-items:center;font-size:10px;color:#9CA3AF;gap:3px;cursor:pointer;padding:6px 0;border:none;background:none}
+.nav-item.active{color:#4F46E5}
+.nav-emoji{font-size:22px}
+.badge-dot{position:absolute;top:2px;right:-8px;background:#EF4444;color:#fff;font-size:10px;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px}
+
+/* Question */
+.q-card{background:#fff;border-radius:14px;padding:18px;margin-bottom:12px;box-shadow:0 2px 6px rgba(0,0,0,0.04)}
+.q-type{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;margin-bottom:10px}
+.q-stem{font-size:17px;line-height:1.6;margin-bottom:16px}
+.opt{padding:12px 14px;margin:6px 0;border-radius:10px;display:flex;align-items:center;cursor:pointer;border:2px solid transparent;transition:all .15s}
+.opt-letter{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;margin-right:12px;flex-shrink:0}
+.opt-text{font-size:15px;flex:1}
+
+/* Page content */
+.page{display:none;padding-bottom:20px}
+.page.active{display:block}
+
+/* Timer */
+.timer-big{font-size:48px;font-weight:800;text-align:center;padding:20px}
+.timer-urgent{color:#DC2626;animation:pulse .5s infinite alternate}
+@keyframes pulse{from{opacity:1}to{opacity:.5}}
+
+/* Score */
+.score-circle{width:100px;height:100px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:36px;font-weight:800;margin:0 auto}
+
+/* Misc */
+.card{background:#fff;border-radius:14px;padding:16px;margin:8px 16px;box-shadow:0 2px 6px rgba(0,0,0,0.04)}
+.result-correct{background:#E8F5E9!important;border-color:#4CAF50!important}
+.result-wrong{background:#FFEBEE!important;border-color:#F44336!important}
+.hidden{display:none!important}
+.progress-bar{height:6px;background:#E5E7EB;border-radius:3px;overflow:hidden}
+.progress-fill{height:100%;background:#4F46E5;border-radius:3px;transition:width .3s}
+.flex-row{display:flex;gap:8px;align-items:center}
+.flex-between{display:flex;justify-content:space-between;align-items:center}
+.mt8{margin-top:8px}.mt12{margin-top:12px}.mt16{margin-top:16px}.mb8{margin-bottom:8px}.mb12{margin-bottom:12px}.mb16{margin-bottom:16px}
+.p16{padding:16px}.text-sm{font-size:13px;color:#6B7280}.text-xs{font-size:11px;color:#9CA3AF}
+.tag{padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;display:inline-block;margin:2px}
+.tag-green{background:#E8F5E9;color:#2E7D32}
+.tag-red{background:#FFEBEE;color:#C62828}
+.tag-blue{background:#E3F2FD;color:#1565C0}
+.tag-orange{background:#FFF3E0;color:#E65100}
+input,select,textarea{width:100%;padding:12px;border:1.5px solid #D1D5DB;border-radius:10px;font-size:15px;font-family:inherit;background:#fff}
+input:focus,select:focus{outline:none;border-color:#4F46E5}
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal-box{background:#fff;border-radius:16px;padding:24px;width:100%;max-width:400px;max-height:80vh;overflow-y:auto}
+.modal-wide{max-width:560px}
+.admin-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.admin-row label{font-size:13px;font-weight:600;min-width:50px}
+.admin-row input,.admin-row select,.admin-row textarea{flex:1;min-width:120px;padding:8px;font-size:14px}
+textarea{min-height:60px;resize:vertical}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+<!-- Header -->
+<div class="header">
+  <div><h1>刷题神器</h1><p>智能刷题 · 科学记忆</p></div>
+  <span style="font-size:28px;cursor:pointer" onclick="navTo('settings')">⚙️</span>
+</div>
+
+<!-- ========== HOME PAGE ========== -->
+<div class="page active" id="page-home">
+  <div class="stats-card">
+    <div class="stat-item"><span class="stat-val" id="home-total">993</span><span class="stat-lbl">题库总数</span></div>
+    <div class="stat-item"><span class="stat-val" id="home-acc">0%</span><span class="stat-lbl">正确率</span></div>
+    <div class="stat-item"><span class="stat-val" id="home-due">0</span><span class="stat-lbl">待复习</span></div>
+  </div>
+
+  <div class="section-title">快速开始</div>
+  <div class="grid2">
+    <div class="menu-card" onclick="startPractice('sequential')">
+      <div class="icon-box" style="background:#EFF6FF">📝</div>
+      <div class="txt"><h3>顺序练习</h3><p>循序渐进掌握知识点</p></div>
+    </div>
+    <div class="menu-card" onclick="startPractice('random')">
+      <div class="icon-box" style="background:#ECFDF5">🎲</div>
+      <div class="txt"><h3>随机练习</h3><p>随机抽查巩固记忆</p></div>
+    </div>
+    <div class="menu-card" onclick="startPractice('wrong')">
+      <div class="icon-box" style="background:#FEF2F2">❌</div>
+      <div class="txt"><h3>错题练习</h3><p>攻克薄弱环节</p></div>
+    </div>
+    <div class="menu-card" onclick="startPractice('mock')">
+      <div class="icon-box" style="background:#F5F3FF">🎓</div>
+      <div class="txt"><h3>模拟考试</h3><p>全真模拟实战演练</p></div>
+    </div>
+  </div>
+
+  <div class="section-title">考试模式</div>
+  <div class="exam-card" onclick="startPractice('timed')">
+    <div class="icon-box" style="background:#FEF2F2">⏱️</div>
+    <div class="txt"><h3>限时考试</h3><p>选择时间和题目数量</p></div>
+    <span class="chevron">›</span>
+  </div>
+
+  <div class="section-title">更多功能</div>
+  <div class="grid2">
+    <div class="menu-card" onclick="navTo('browse')">
+      <div class="icon-box" style="background:#EFF6FF">📚</div>
+      <div class="txt"><h3>题库浏览</h3><p>搜索筛选题目</p></div>
+    </div>
+    <div class="menu-card" onclick="navTo('ebbinghaus')">
+      <div class="icon-box" style="background:#FFF3E0">🔄<span id="ebb-badge-home" style="font-size:10px;background:#EF4444;color:#fff;border-radius:8px;padding:1px 5px;position:absolute;margin-left:14px;margin-top:-12px;display:none">0</span></div>
+      <div class="txt"><h3>艾宾浩斯</h3><p>科学记忆复习</p></div>
+    </div>
+    <div class="menu-card" onclick="navTo('favorites')">
+      <div class="icon-box" style="background:#FCE4EC">❤️</div>
+      <div class="txt"><h3>收藏题目</h3><p>查看收藏和标签</p></div>
+    </div>
+    <div class="menu-card" onclick="navTo('history')">
+      <div class="icon-box" style="background:#E0F2F1">📋</div>
+      <div class="txt"><h3>答题历史</h3><p>回顾答题记录</p></div>
+    </div>
+    <div class="menu-card" onclick="navTo('statistics')">
+      <div class="icon-box" style="background:#E8EAF6">📊</div>
+      <div class="txt"><h3>详细统计</h3><p>分析学习数据</p></div>
+    </div>
+    <div class="menu-card" onclick="navTo('import')">
+      <div class="icon-box" style="background:#F3E5F5">📥</div>
+      <div class="txt"><h3>导入导出</h3><p>数据备份同步</p></div>
+    </div>
+  </div>
+  <div style="height:20px"></div>
+</div>
+
+<!-- ========== PRACTICE PAGE ========== -->
+<div class="page" id="page-practice">
+  <div class="header" style="position:sticky;top:0">
+    <span style="font-size:20px;cursor:pointer" onclick="exitPractice()">← 返回</span>
+    <span style="font-weight:600" id="prac-title">练习</span>
+    <span></span>
+  </div>
+  <div id="prac-setup"></div>
+  <div id="prac-question" class="hidden"></div>
+  <div id="prac-result" class="hidden"></div>
+</div>
+
+<!-- ========== BROWSE PAGE ========== -->
+<div class="page" id="page-browse">
+  <div class="header" style="position:sticky;top:0">
+    <span style="font-size:20px;cursor:pointer" onclick="navTo('home')">← 返回</span>
+    <span style="font-weight:600">题库浏览</span>
+    <span></span>
+  </div>
+  <div class="p16"><input type="text" id="browse-search" placeholder="🔍 搜索题目..." oninput="renderBrowse()"></div>
+  <div class="p16 flex-row" style="flex-wrap:wrap">
+    <select id="browse-cat" onchange="renderBrowse()" style="width:auto;flex:1"><option value="">全部类别</option></select>
+    <select id="browse-diff" onchange="renderBrowse()" style="width:auto;flex:1"><option value="">全部难度</option></select>
+  </div>
+  <div id="browse-list" class="p16"></div>
+  <div class="p16 flex-row" id="browse-pager" style="justify-content:center"></div>
+</div>
+
+<!-- ========== EBBINGHAUS PAGE ========== -->
+<div class="page" id="page-ebbinghaus">
+  <div class="header" style="position:sticky;top:0">
+    <span style="font-size:20px;cursor:pointer" onclick="navTo('home')">← 返回</span>
+    <span style="font-weight:600">艾宾浩斯复习</span>
+    <span></span>
+  </div>
+  <div id="ebb-content" class="p16"></div>
+</div>
+
+<!-- ========== FAVORITES PAGE ========== -->
+<div class="page" id="page-favorites">
+  <div class="header" style="position:sticky;top:0">
+    <span style="font-size:20px;cursor:pointer" onclick="navTo('home')">← 返回</span>
+    <span style="font-weight:600">收藏题目</span>
+    <span></span>
+  </div>
+  <div id="fav-content" class="p16"></div>
+</div>
+
+<!-- ========== HISTORY PAGE ========== -->
+<div class="page" id="page-history">
+  <div class="header" style="position:sticky;top:0">
+    <span style="font-size:20px;cursor:pointer" onclick="navTo('home')">← 返回</span>
+    <span style="font-weight:600">答题历史</span>
+    <span style="color:#DC2626;cursor:pointer" onclick="clearHistory()">清空</span>
+  </div>
+  <div id="hist-content" class="p16"></div>
+</div>
+
+<!-- ========== STATISTICS PAGE ========== -->
+<div class="page" id="page-statistics">
+  <div class="header" style="position:sticky;top:0">
+    <span style="font-size:20px;cursor:pointer" onclick="navTo('home')">← 返回</span>
+    <span style="font-weight:600">学习统计</span>
+    <span></span>
+  </div>
+  <div id="stats-content" class="p16"></div>
+</div>
+
+<!-- ========== SETTINGS PAGE ========== -->
+<div class="page" id="page-settings">
+  <div class="header" style="position:sticky;top:0">
+    <span style="font-size:20px;cursor:pointer" onclick="navTo('home')">← 返回</span>
+    <span style="font-weight:600">设置</span>
+    <span></span>
+  </div>
+  <div class="p16">
+    <div class="card"><h3 style="margin-bottom:8px">🧠 AI 分析设置</h3>
+      <p class="text-sm mb12">配置 AI API 后为错题生成深度分析</p>
+      <label class="text-sm">API 地址</label><input type="text" id="set-url" class="mb8" placeholder="https://api.deepseek.com/v1/chat/completions">
+      <label class="text-sm">API Key</label><input type="password" id="set-key" class="mb8" placeholder="sk-...">
+      <label class="text-sm">模型名称</label><input type="text" id="set-model" class="mb12" placeholder="deepseek-chat">
+      <button class="btn btn-dark" onclick="saveSettings()">保存设置</button>
+    </div>
+    <div class="card mt12">
+      <h3 style="margin-bottom:8px">📦 数据管理</h3>
+      <button class="btn btn-outline mb8" onclick="document.getElementById('csv-file').click()">📥 导入 Excel/CSV 题库</button>
+      <input type="file" id="csv-file" accept=".csv,.xlsx,.xls" class="hidden" onchange="importFile(this)">
+      <button class="btn btn-outline mb8" onclick="exportCSV()">📤 导出 CSV 题库</button>
+      <button class="btn btn-outline mb8" onclick="exportSyncData()">📤 导出学习数据 (JSON)</button>
+      <button class="btn btn-outline mb8" onclick="showImportSync()">📥 导入学习数据 (JSON)</button>
+      <div id="sync-import-area" class="hidden mt8">
+        <textarea id="sync-json" rows="4" placeholder="粘贴 JSON 数据..." class="mb8"></textarea>
+        <button class="btn btn-blue" onclick="importSyncData()">确认导入</button>
+      </div>
+      <button class="btn btn-outline mb8" style="color:#DC2626;border-color:#DC2626" onclick="if(confirm('确定清除所有答题历史？'))clearHistory()">🗑️ 清除答题历史</button>
+      <button class="btn btn-outline" style="color:#DC2626;border-color:#DC2626" onclick="if(confirm('确定清除所有用户数据？此操作不可恢复！'))resetAll()">⚠️ 清除所有数据</button>
+    </div>
+    <div class="card mt12">
+      <h3 style="margin-bottom:8px">🔑 题库管理</h3>
+      <p class="text-sm mb8">管理员可编辑修改题库内容</p>
+      <button class="btn btn-dark" onclick="showAdminGate()">进入管理</button>
+    </div>
+    <div class="card mt12">
+      <h3 style="margin-bottom:8px">☁️ 云端同步</h3>
+      <p class="text-sm mb8">配置后可在题库管理中一键保存到 GitHub，所有人自动更新</p>
+      <label class="text-sm">GitHub Token</label>
+      <input type="password" id="set-gh-token" class="mb8" placeholder="ghp_xxxxxxxx">
+      <label class="text-sm">仓库名</label>
+      <input type="text" id="set-gh-repo" class="mb12" placeholder="用户名/仓库名 (如 shengzhangf/exam-pwa)">
+      <button class="btn btn-dark" onclick="saveSettings()">保存设置</button>
+    </div>
+    <div class="card mt12"><div style="text-align:center"><strong>刷题神器 v5.1 PWA</strong><p class="text-sm">基于艾宾浩斯遗忘曲线的智能刷题工具</p><p class="text-xs mt8">支持 iOS / Android 离线使用</p></div></div>
+  </div>
+</div>
+
+<!-- ========== IMPORT PAGE ========== -->
+<div class="page" id="page-import">
+  <div class="header" style="position:sticky;top:0">
+    <span style="font-size:20px;cursor:pointer" onclick="navTo('home')">← 返回</span>
+    <span style="font-weight:600">导入导出</span>
+    <span></span>
+  </div>
+  <div class="p16">
+    <div class="card"><h3>📥 导入 Excel/CSV 题库</h3><p class="text-sm mb8">支持 .xlsx .csv 格式，需管理密码</p><button class="btn btn-blue" onclick="document.getElementById('csv-file2').click()">选择 Excel/CSV 文件</button><input type="file" id="csv-file2" accept=".csv,.xlsx,.xls" class="hidden" onchange="importFile(this)"></div>
+    <div class="card mt12"><h3>📤 导出 CSV</h3><p class="text-sm mb8">导出全部题库为 CSV</p><button class="btn btn-dark" onclick="exportCSV()">导出 CSV</button></div>
+    <div class="card mt12"><h3>🔄 数据同步</h3><p class="text-sm mb8">导出/导入学习数据 (JSON)</p><button class="btn btn-dark mb8" onclick="exportSyncData()">导出学习数据</button><button class="btn btn-outline" onclick="showImportSync()">导入学习数据</button><div id="sync-import-area2" class="hidden mt8"><textarea id="sync-json2" rows="4" placeholder="粘贴 JSON 数据..." class="mb8"></textarea><button class="btn btn-blue" onclick="importSyncData()">确认导入</button></div></div>
+  </div>
+</div>
+
+<!-- ========== ADMIN PAGE ========== -->
+<div class="page" id="page-admin">
+  <div class="header" style="position:sticky;top:0">
+    <span style="font-size:20px;cursor:pointer" onclick="navTo('settings')">← 返回</span>
+    <span style="font-weight:600">题库管理</span>
+    <span></span>
+  </div>
+  <div id="admin-content" class="p16"></div>
+</div>
+
+<!-- Bottom Nav -->
+<nav class="bottom-nav">
+  <button class="nav-item active" onclick="navTo('home')" id="nav-home"><span class="nav-emoji">🏠</span>首页</button>
+  <button class="nav-item" onclick="navTo('browse')" id="nav-browse"><span class="nav-emoji">📚</span>题库</button>
+  <button class="nav-item" onclick="navTo('ebbinghaus')" id="nav-ebb" style="position:relative"><span class="nav-emoji">🔄</span>复习<span id="ebb-badge" class="badge-dot" style="display:none">0</span></button>
+  <button class="nav-item" onclick="navTo('statistics')" id="nav-stats"><span class="nav-emoji">📊</span>统计</button>
+  <button class="nav-item" onclick="navTo('favorites')" id="nav-fav"><span class="nav-emoji">❤️</span>收藏</button>
+</nav>
+
+</div>
+
+<script>
+// ==================== DATABASE LAYER ====================
+const DB_NAME = 'ExamMasterPWA';
+const DB_VER = 1;
+let db;
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VER);
+    req.onupgradeneeded = e => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains('questions')) d.createObjectStore('questions', { keyPath: 'id' });
+      if (!d.objectStoreNames.contains('history')) { const s = d.createObjectStore('history', { keyPath: 'id', autoIncrement: true }); s.createIndex('qid', 'questionId'); s.createIndex('ts', 'timestamp'); }
+      if (!d.objectStoreNames.contains('favorites')) d.createObjectStore('favorites', { keyPath: 'questionId' });
+      if (!d.objectStoreNames.contains('ebbinghaus')) d.createObjectStore('ebbinghaus', { keyPath: 'questionId' });
+      if (!d.objectStoreNames.contains('settings')) d.createObjectStore('settings', { keyPath: 'key' });
+      if (!d.objectStoreNames.contains('progress')) d.createObjectStore('progress', { keyPath: 'key' });
+    };
+    req.onsuccess = () => { db = req.result; resolve(db); };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function dbPut(store, data) { return new Promise((resolve, reject) => { const tx = db.transaction(store, 'readwrite'); const s = tx.objectStore(store); const req = s.put(data); req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error); }); }
+function dbGet(store, key) { return new Promise((resolve, reject) => { const tx = db.transaction(store, 'readonly'); const req = tx.objectStore(store).get(key); req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error); }); }
+function dbGetAll(store) { return new Promise((resolve, reject) => { const tx = db.transaction(store, 'readonly'); const req = tx.objectStore(store).getAll(); req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error); }); }
+function dbDelete(store, key) { return new Promise((resolve, reject) => { const tx = db.transaction(store, 'readwrite'); const req = tx.objectStore(store).delete(key); req.onsuccess = () => resolve(); req.onerror = () => reject(req.error); }); }
+function dbClear(store) { return new Promise((resolve, reject) => { const tx = db.transaction(store, 'readwrite'); const req = tx.objectStore(store).clear(); req.onsuccess = () => resolve(); req.onerror = () => reject(req.error); }); }
+function dbCount(store) { return new Promise((resolve, reject) => { const tx = db.transaction(store, 'readonly'); const req = tx.objectStore(store).count(); req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error); }); }
+
+// ==================== STATE ====================
+let questions = [];
+let currentMode = null;
+let currentQIndex = 0;
+let currentQuestionList = [];
+let selectedAnswers = new Set();
+let showResult = false;
+let isCorrect = false;
+let examTimer = null;
+let examTimeLeft = 0;
+let examTotalTime = 0;
+let examAnswers = {};
+let examSubmitted = false;
+let browsePage = 1;
+const PAGE_SIZE = 20;
+
+// ==================== LOAD QUESTIONS ====================
+async function loadQuestions() {
+  const cached = await dbGetAll('questions');
+
+  // Always try to fetch latest from server first
+  try {
+    const resp = await fetch('questions.json');
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    if (data.length > 0) {
+      // Always use server data and update IndexedDB
+      questions = data;
+      for (const q of questions) { await dbPut('questions', q); }
+      return;
+    }
+  } catch(e) {
+    console.warn('Failed to fetch questions.json, using cache:', e.message);
+  }
+
+  // Fallback to cache
+  if (cached.length > 0) { questions = cached; }
+}
+
+function getStemPreview(q) { return q.stem.length > 30 ? q.stem.substring(0, 30) + '...' : q.stem; }
+function getOptions(q) {
+  const opts = [];
+  ['A','B','C','D','E'].forEach(l => { if (q[l] && q[l].trim()) opts.push([l, q[l].trim()]); });
+  return opts;
+}
+
+// ==================== NAVIGATION ====================
+function navTo(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const p = document.getElementById('page-' + page);
+  if (p) p.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const nav = document.getElementById('nav-' + page);
+  if (nav) nav.classList.add('active');
+  window.scrollTo(0, 0);
+
+  if (page === 'home') refreshHome();
+  if (page === 'browse') { initBrowseFilters(); renderBrowse(); }
+  if (page === 'ebbinghaus') renderEbbinghaus();
+  if (page === 'favorites') renderFavorites();
+  if (page === 'history') renderHistory();
+  if (page === 'statistics') renderStatistics();
+  if (page === 'settings') loadSettings();
+}
+
+function refreshHome() { updateStats(); updateEbbBadge(); }
+
+// ==================== STATS ====================
+async function updateStats() {
+  const total = questions.length;
+  const hist = await dbGetAll('history');
+  const correct = hist.filter(h => h.correct).length;
+  const acc = hist.length > 0 ? Math.round(correct / hist.length * 100) : 0;
+  const today = getToday();
+  const ebbs = await dbGetAll('ebbinghaus');
+  const due = ebbs.filter(e => e.nextReviewDate <= today).length;
+
+  document.getElementById('home-total').textContent = total;
+  document.getElementById('home-acc').textContent = acc + '%';
+  document.getElementById('home-due').textContent = due;
+}
+
+async function updateEbbBadge() {
+  const today = getToday();
+  const ebbs = await dbGetAll('ebbinghaus');
+  const due = ebbs.filter(e => e.nextReviewDate <= today).length;
+  ['ebb-badge', 'ebb-badge-home'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = due;
+    el.style.display = due > 0 ? 'flex' : 'none';
+  });
+}
+
+function getToday() { return new Date().toISOString().split('T')[0]; }
+function addDays(dateStr, days) { const d = new Date(dateStr); d.setDate(d.getDate() + days); return d.toISOString().split('T')[0]; }
+
+// ==================== PRACTICE MODES ====================
+async function startPractice(mode) {
+  currentMode = mode;
+  selectedAnswers = new Set();
+  showResult = false;
+  isCorrect = false;
+  currentQIndex = 0;
+  examSubmitted = false;
+  examAnswers = {};
+  if (examTimer) { clearInterval(examTimer); examTimer = null; }
+
+  navTo('practice');
+  document.getElementById('page-practice').classList.add('active');
+  document.querySelectorAll('.page').forEach(p => { if (p.id !== 'page-practice') p.classList.remove('active'); });
+  document.getElementById('prac-result').classList.add('hidden');
+  document.getElementById('prac-question').classList.add('hidden');
+  document.getElementById('prac-setup').classList.remove('hidden');
+
+  if (mode === 'timed') {
+    document.getElementById('prac-title').textContent = '限时考试';
+    document.getElementById('prac-setup').innerHTML = `
+      <div class="p16">
+        <div class="card" style="background:#FFF3E0"><div class="flex-row"><span style="font-size:32px">⏱️</span><div><h3>限时考试</h3><p class="text-sm">在规定时间内完成答题</p></div></div></div>
+        <p class="mt16 mb8" style="font-weight:600">选择时间</p>
+        <div class="chips">${[5,10,15,20].map(m => `<button class="chip${m===10?' active':''}" onclick="this.parentElement.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));this.classList.add('active')" data-v="${m}">${m} 分钟</button>`).join('')}</div>
+        <p class="mt16 mb8" style="font-weight:600">题目数量</p>
+        <div class="chips">${[10,20,50].map(n => `<button class="chip${n===20?' active':''}" onclick="this.parentElement.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));this.classList.add('active')" data-v="${n}">${n}题</button>`).join('')}</div>
+        <button class="btn btn-dark mt16" onclick="startTimedExam()">开始限时考试</button>
+      </div>`;
+  } else if (mode === 'mock') {
+    document.getElementById('prac-title').textContent = '模拟考试';
+    document.getElementById('prac-setup').innerHTML = `
+      <div class="p16">
+        <div class="card" style="background:#E3F2FD"><div class="flex-row"><span style="font-size:32px">📝</span><div><h3>模拟考试</h3><p class="text-sm">不限时间，提交后查看报告</p></div></div></div>
+        <p class="mt16 mb8" style="font-weight:600">题目数量</p>
+        <div class="chips">${[10,20,50,100].map(n => `<button class="chip${n===20?' active':''}" onclick="this.parentElement.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));this.classList.add('active')" data-v="${n}">${n}题</button>`).join('')}</div>
+        <button class="btn btn-blue mt16" onclick="startMockExam()">开始模拟考试</button>
+      </div>`;
+  } else if (mode === 'wrong') {
+    document.getElementById('prac-title').textContent = '错题练习';
+    const wrongIds = await getWrongQuestionIds();
+    if (wrongIds.length === 0) {
+      document.getElementById('prac-setup').innerHTML = '<div class="p16" style="text-align:center"><p style="font-size:48px">🎉</p><h3 class="mt8">暂无错题</h3><p class="text-sm mt8">继续加油！</p><button class="btn btn-blue mt16" onclick="navTo(\'home\')">返回首页</button></div>';
+      return;
+    }
+    currentQuestionList = questions.filter(q => wrongIds.includes(q.id));
+    shuffle(currentQuestionList);
+    showCurrentQuestion();
+  } else if (mode === 'sequential') {
+    document.getElementById('prac-title').textContent = '顺序练习';
+    const prog = await dbGet('progress', 'seq');
+    currentQuestionList = [...questions];
+    currentQIndex = prog ? Math.max(0, currentQuestionList.findIndex(q => q.id === prog.value)) : 0;
+    if (currentQIndex < 0) currentQIndex = 0;
+    showCurrentQuestion();
+  } else {
+    document.getElementById('prac-title').textContent = '随机练习';
+    currentQuestionList = [...questions];
+    shuffle(currentQuestionList);
+    showCurrentQuestion();
+  }
+}
+
+function shuffle(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } }
+
+async function getWrongQuestionIds() {
+  const hist = await dbGetAll('history');
+  const wrongMap = {};
+  hist.filter(h => !h.correct).forEach(h => { wrongMap[h.questionId] = true; });
+  const rightMap = {};
+  hist.filter(h => h.correct).forEach(h => { rightMap[h.questionId] = true; });
+  return Object.keys(wrongMap).filter(id => !rightMap[id]).map(Number);
+}
+
+function showCurrentQuestion() {
+  document.getElementById('prac-setup').classList.add('hidden');
+  document.getElementById('prac-result').classList.add('hidden');
+  document.getElementById('prac-question').classList.remove('hidden');
+  selectedAnswers = new Set();
+  showResult = false;
+  renderQuestion();
+}
+
+function renderQuestion() {
+  if (currentQIndex >= currentQuestionList.length) {
+    document.getElementById('prac-question').innerHTML = '<div class="p16" style="text-align:center"><p style="font-size:48px">🎉</p><h3>全部完成！</h3><button class="btn btn-blue mt16" onclick="navTo(\'home\')">返回首页</button></div>';
+    return;
+  }
+  const q = currentQuestionList[currentQIndex];
+  const opts = getOptions(q);
+  const isTf = q.qtype === '判断题';
+
+  let html = `<div class="q-card">
+    <span class="q-type" style="background:${q.qtype==='多选题'?'#FFF3E0':q.qtype==='判断题'?'#E3F2FD':'#E8F5E9'};color:${q.qtype==='多选题'?'#E65100':q.qtype==='判断题'?'#1565C0':'#2E7D32'}">${q.qtype||'单选题'}</span>
+    <span class="text-sm" style="margin-left:8px">题目 ${q.id}</span>`;
+
+  if (currentMode === 'sequential' || currentMode === 'wrong') {
+    html += `<span class="text-sm" style="float:right">${currentQIndex+1}/${currentQuestionList.length}</span>`;
+  }
+
+  html += `<div class="q-stem mt8">${q.stem}</div>`;
+
+  if (isTf) {
+    html += `<div class="flex-row">`;
+    ['对','错'].forEach(v => {
+      const sel = selectedAnswers.has(v);
+      let cls = 'btn';
+      let bg = sel ? '#1E40AF' : '#F3F4F6';
+      let color = sel ? '#fff' : '#4B5563';
+      if (showResult) {
+        const isRight = q.answer.trim() === v;
+        if (isRight) { bg = '#4CAF50'; color = '#fff'; cls += ''; }
+        else if (sel && !isRight) { bg = '#F44336'; color = '#fff'; }
+      }
+      html += `<button class="${cls}" style="flex:1;height:52px;background:${bg};color:${color};font-size:18px" ${showResult?'disabled':''} onclick="toggleAnswer('${v}')">${v==='对'?'✓ 对':'✗ 错'}</button>`;
+    });
+    html += `</div>`;
+  } else {
+    const correctAns = q.answer.trim();
+    opts.forEach(([letter, text]) => {
+      const sel = selectedAnswers.has(letter);
+      let bg = sel ? '#DBEAFE' : '#fff';
+      let border = sel ? '2px solid #1E40AF' : '2px solid transparent';
+      let circleBg = sel ? '#1E40AF' : '#F3F4F6';
+      let circleColor = sel ? '#fff' : '#4B5563';
+      let icon = sel ? '<span style="color:#1E40AF">✓</span>' : '';
+
+      if (showResult) {
+        const isRight = correctAns.includes(letter);
+        if (isRight) { bg = '#E8F5E9'; border = '2px solid #4CAF50'; circleBg = '#4CAF50'; circleColor = '#fff'; icon = '<span style="color:#4CAF50">✓</span>'; }
+        else if (sel && !isRight) { bg = '#FFEBEE'; border = '2px solid #F44336'; circleBg = '#F44336'; circleColor = '#fff'; icon = '<span style="color:#F44336">✗</span>'; }
+      }
+
+      html += `<div class="opt" style="background:${bg};border:${border}" onclick="${showResult?'':'toggleAnswer(\''+letter+'\')'}">
+        <div class="opt-letter" style="background:${circleBg};color:${circleColor}">${letter}</div>
+        <span class="opt-text">${text}</span>${icon}
+      </div>`;
+    });
+  }
+
+  html += `</div>`;
+
+  if (!showResult) {
+    html += `<button class="btn btn-dark mt12" onclick="submitAnswer()" ${selectedAnswers.size===0?'disabled':''}>提交答案</button>`;
+  } else {
+    html += `<div class="card mt12" style="background:${isCorrect?'#E8F5E9':'#FFEBEE'}">
+      <div class="flex-row"><span style="font-size:24px">${isCorrect?'✓':'✗'}</span><div><strong>${isCorrect?'回答正确！':'回答错误'}</strong>${!isCorrect?`<p class="text-sm">正确答案: ${q.answer}</p>`:''}</div></div>
+    </div>`;
+    html += `<div class="flex-row mt12">`;
+    if (currentMode === 'sequential' || currentMode === 'wrong') {
+      html += `<button class="btn btn-outline" onclick="prevQuestion()" ${currentQIndex===0?'disabled':''}>← 上一题</button>`;
+    }
+    html += `<button class="btn btn-blue" style="flex:1" onclick="nextQuestion()">下一题 →</button></div>`;
+  }
+
+  document.getElementById('prac-question').innerHTML = html;
+}
+
+function toggleAnswer(val) {
+  if (showResult) return;
+  const q = currentQuestionList[currentQIndex];
+  if (q.qtype === '多选题') {
+    if (selectedAnswers.has(val)) selectedAnswers.delete(val); else selectedAnswers.add(val);
+  } else {
+    selectedAnswers.clear();
+    selectedAnswers.add(val);
+  }
+  renderQuestion();
+}
+
+async function submitAnswer() {
+  const q = currentQuestionList[currentQIndex];
+  const userAns = [...selectedAnswers].sort().join('');
+  const correctAns = q.answer.trim();
+  isCorrect = userAns === correctAns;
+
+  await dbPut('history', {
+    questionId: q.id,
+    userAnswer: userAns,
+    correct: isCorrect,
+    timestamp: Date.now()
+  });
+
+  // Ebbinghaus: wrong answers get added to review
+  if (!isCorrect) {
+    const today = getToday();
+    const existing = await dbGet('ebbinghaus', q.id);
+    if (!existing) {
+      await dbPut('ebbinghaus', {
+        questionId: q.id,
+        reviewStage: 0,
+        nextReviewDate: addDays(today, 1),
+        lastReviewDate: today,
+        reviewCount: 0
+      });
+    }
+  }
+
+  if (currentMode === 'sequential') {
+    await dbPut('progress', { key: 'seq', value: q.id });
+  }
+
+  showResult = true;
+  renderQuestion();
+  updateStats();
+  updateEbbBadge();
+}
+
+function nextQuestion() {
+  currentQIndex++;
+  selectedAnswers = new Set();
+  showResult = false;
+  if (currentQIndex >= currentQuestionList.length) {
+    if (currentMode === 'sequential' || currentMode === 'wrong') {
+      document.getElementById('prac-question').innerHTML = '<div class="p16" style="text-align:center"><p style="font-size:48px">🎉</p><h3>全部完成！</h3><button class="btn btn-blue mt16" onclick="navTo(\'home\')">返回首页</button></div>';
+      return;
+    }
+    currentQIndex = 0;
+    if (currentMode === 'random') shuffle(currentQuestionList);
+  }
+  renderQuestion();
+}
+
+function prevQuestion() {
+  if (currentQIndex > 0) {
+    currentQIndex--;
+    selectedAnswers = new Set();
+    showResult = false;
+    renderQuestion();
+  }
+}
+
+function exitPractice() {
+  if (examTimer) { clearInterval(examTimer); examTimer = null; }
+  navTo('home');
+}
+
+// ==================== TIMED EXAM ====================
+function startTimedExam() {
+  const timeBtns = document.querySelectorAll('#prac-setup .chips:first-of-type .chip');
+  let duration = 10;
+  timeBtns.forEach(b => { if (b.classList.contains('active')) duration = parseInt(b.dataset.v); });
+  const countBtns = document.querySelectorAll('#prac-setup .chips:last-of-type .chip');
+  let count = 20;
+  countBtns.forEach(b => { if (b.classList.contains('active')) count = parseInt(b.dataset.v); });
+
+  examTimeLeft = duration * 60;
+  examTotalTime = duration * 60;
+  examAnswers = {};
+  examSubmitted = false;
+  currentQuestionList = [...questions].slice(0, count);
+  shuffle(currentQuestionList);
+  currentQIndex = 0;
+  selectedAnswers = new Set();
+  showResult = false;
+
+  document.getElementById('prac-setup').classList.add('hidden');
+  document.getElementById('prac-question').classList.remove('hidden');
+  renderTimedQuestion();
+
+  examTimer = setInterval(() => {
+    examTimeLeft--;
+    if (examTimeLeft <= 0) { submitTimedExam(); }
+    renderTimedQuestion();
+  }, 1000);
+}
+
+function renderTimedQuestion() {
+  if (examSubmitted) return;
+  const mins = Math.floor(examTimeLeft / 60);
+  const secs = examTimeLeft % 60;
+  const urgent = examTimeLeft < 60;
+
+  let html = `<div class="timer-big${urgent?' timer-urgent':''}">⏱ ${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}</div>
+    <div class="progress-bar" style="margin:0 16px"><div class="progress-fill" style="width:${examTimeLeft/examTotalTime*100}%;background:${urgent?'#DC2626':'#4F46E5'}"></div></div>`;
+
+  // Question nav chips
+  html += `<div class="chips p16" style="overflow-x:auto;flex-wrap:nowrap">`;
+  currentQuestionList.forEach((q, i) => {
+    const answered = examAnswers[q.id] && examAnswers[q.id].size > 0;
+    html += `<button class="chip${i===currentQIndex?' active':''}" style="${answered?'background:#DBEAFE;color:#1E40AF':''}" onclick="jumpToQuestion(${i})">${i+1}</button>`;
+  });
+  html += `</div>`;
+
+  if (currentQIndex < currentQuestionList.length) {
+    const q = currentQuestionList[currentQIndex];
+    const opts = getOptions(q);
+    const sel = examAnswers[q.id] || new Set();
+
+    html += `<div class="q-card">
+      <span class="q-type" style="background:${q.qtype==='多选题'?'#FFF3E0':q.qtype==='判断题'?'#E3F2FD':'#E8F5E9'};color:${q.qtype==='多选题'?'#E65100':q.qtype==='判断题'?'#1565C0':'#2E7D32'}">${q.qtype||'单选题'}</span>
+      <span class="text-sm" style="margin-left:8px">${currentQIndex+1}/${currentQuestionList.length}</span>
+      <div class="q-stem mt8">${q.stem}</div>`;
+
+    if (q.qtype === '判断题') {
+      html += `<div class="flex-row">`;
+      ['对','错'].forEach(v => {
+        const isSel = sel.has(v);
+        html += `<button class="btn" style="flex:1;height:48px;background:${isSel?'#1E40AF':'#F3F4F6'};color:${isSel?'#fff':'#4B5563'}" onclick="toggleExamAnswer(${q.id},'${v}')">${v==='对'?'✓ 对':'✗ 错'}</button>`;
+      });
+      html += `</div>`;
+    } else {
+      opts.forEach(([letter, text]) => {
+        const isSel = sel.has(letter);
+        html += `<div class="opt" style="background:${isSel?'#DBEAFE':'#fff'};border:${isSel?'2px solid #1E40AF':'2px solid transparent'}" onclick="toggleExamAnswer(${q.id},'${letter}')">
+          <div class="opt-letter" style="background:${isSel?'#1E40AF':'#F3F4F6'};color:${isSel?'#fff':'#4B5563'}">${letter}</div>
+          <span class="opt-text">${text}</span></div>`;
+      });
+    }
+    html += `</div>`;
+  }
+
+  html += `<div class="flex-row p16">
+    <button class="btn btn-outline" style="flex:1" onclick="prevTimedQuestion()" ${currentQIndex===0?'disabled':''}>← 上一题</button>
+    <button class="btn btn-outline" style="flex:1" onclick="nextTimedQuestion()" ${currentQIndex>=currentQuestionList.length-1?'disabled':''}>下一题 →</button>
+    <button class="btn btn-red" style="flex:1" onclick="if(confirm('确定交卷？'))submitTimedExam()">交卷</button>
+  </div>`;
+
+  document.getElementById('prac-question').innerHTML = html;
+}
+
+function toggleExamAnswer(qid, val) {
+  if (!examAnswers[qid]) examAnswers[qid] = new Set();
+  const q = currentQuestionList.find(q => q.id === qid);
+  if (q && q.qtype === '多选题') {
+    if (examAnswers[qid].has(val)) examAnswers[qid].delete(val); else examAnswers[qid].add(val);
+  } else {
+    examAnswers[qid].clear();
+    examAnswers[qid].add(val);
+  }
+  renderTimedQuestion();
+}
+
+function jumpToQuestion(i) { currentQIndex = i; renderTimedQuestion(); }
+function prevTimedQuestion() { if (currentQIndex > 0) { currentQIndex--; renderTimedQuestion(); } }
+function nextTimedQuestion() { if (currentQIndex < currentQuestionList.length - 1) { currentQIndex++; renderTimedQuestion(); } }
+
+async function submitTimedExam() {
+  examSubmitted = true;
+  if (examTimer) { clearInterval(examTimer); examTimer = null; }
+
+  let score = 0;
+  const results = [];
+  for (const q of currentQuestionList) {
+    const userAns = [...(examAnswers[q.id] || [])].sort().join('');
+    const correct = userAns === q.answer.trim();
+    if (correct) score++;
+    results.push({ question: q, userAnswer: userAns, correct });
+
+    await dbPut('history', { questionId: q.id, userAnswer: userAns, correct, timestamp: Date.now() });
+    if (!correct) {
+      const today = getToday();
+      const existing = await dbGet('ebbinghaus', q.id);
+      if (!existing) {
+        await dbPut('ebbinghaus', { questionId: q.id, reviewStage: 0, nextReviewDate: addDays(today, 1), lastReviewDate: today, reviewCount: 0 });
+      }
+    }
+  }
+
+  let html = `<div class="card" style="text-align:center;background:${score/currentQuestionList.length>=0.6?'#E8F5E9':'#FFEBEE'}">
+    <p style="font-size:48px">${score/currentQuestionList.length>=0.6?'🏆':'😞'}</p>
+    <p style="font-size:36px;font-weight:800">${score} / ${currentQuestionList.length}</p>
+    <p class="text-sm">正确率 ${Math.round(score/currentQuestionList.length*100)}%</p></div>`;
+
+  results.forEach((r, i) => {
+    html += `<div class="card mt8"><div class="flex-row"><span style="font-size:18px">${r.correct?'✓':'✗'}</span><span>${i+1}. ${getStemPreview(r.question)}</span></div>`;
+    if (!r.correct) html += `<p class="text-sm mt8"><span style="color:#DC2626">你的答案: ${r.userAnswer||'未作答'}</span> → <span style="color:#4CAF50">正确答案: ${r.question.answer}</span></p>`;
+    html += `</div>`;
+  });
+
+  html += `<button class="btn btn-blue mt12" onclick="navTo('home')">返回首页</button>`;
+  document.getElementById('prac-question').innerHTML = html;
+  updateStats();
+  updateEbbBadge();
+}
+
+// ==================== MOCK EXAM ====================
+function startMockExam() {
+  const countBtns = document.querySelectorAll('#prac-setup .chips .chip');
+  let count = 20;
+  countBtns.forEach(b => { if (b.classList.contains('active')) count = parseInt(b.dataset.v); });
+
+  examAnswers = {};
+  examSubmitted = false;
+  currentQuestionList = [...questions].slice(0, count);
+  shuffle(currentQuestionList);
+  currentQIndex = 0;
+  selectedAnswers = new Set();
+  showResult = false;
+
+  document.getElementById('prac-setup').classList.add('hidden');
+  document.getElementById('prac-question').classList.remove('hidden');
+  renderMockExamQuestion();
+}
+
+function renderMockExamQuestion() {
+  if (examSubmitted) return;
+
+  let html = `<div class="progress-bar" style="margin:12px 16px"><div class="progress-fill" style="width:${Object.keys(examAnswers).filter(k=>examAnswers[k].size>0).length/currentQuestionList.length*100}%"></div></div>`;
+
+  html += `<div class="chips p16" style="overflow-x:auto;flex-wrap:nowrap">`;
+  currentQuestionList.forEach((q, i) => {
+    const answered = examAnswers[q.id] && examAnswers[q.id].size > 0;
+    html += `<button class="chip${i===currentQIndex?' active':''}" style="${answered?'background:#DBEAFE;color:#1E40AF':''}" onclick="jumpToMockQ(${i})">${i+1}</button>`;
+  });
+  html += `</div>`;
+
+  if (currentQIndex < currentQuestionList.length) {
+    const q = currentQuestionList[currentQIndex];
+    const opts = getOptions(q);
+    const sel = examAnswers[q.id] || new Set();
+
+    html += `<div class="q-card">
+      <span class="q-type" style="background:${q.qtype==='多选题'?'#FFF3E0':q.qtype==='判断题'?'#E3F2FD':'#E8F5E9'};color:${q.qtype==='多选题'?'#E65100':q.qtype==='判断题'?'#1565C0':'#2E7D32'}">${q.qtype||'单选题'}</span>
+      <span class="text-sm" style="margin-left:8px">${currentQIndex+1}/${currentQuestionList.length}</span>
+      <div class="q-stem mt8">${q.stem}</div>`;
+
+    if (q.qtype === '判断题') {
+      html += `<div class="flex-row">`;
+      ['对','错'].forEach(v => {
+        const isSel = sel.has(v);
+        html += `<button class="btn" style="flex:1;height:48px;background:${isSel?'#1E40AF':'#F3F4F6'};color:${isSel?'#fff':'#4B5563'}" onclick="toggleExamAnswer(${q.id},'${v}')">${v==='对'?'✓ 对':'✗ 错'}</button>`;
+      });
+      html += `</div>`;
+    } else {
+      opts.forEach(([letter, text]) => {
+        const isSel = sel.has(letter);
+        html += `<div class="opt" style="background:${isSel?'#DBEAFE':'#fff'};border:${isSel?'2px solid #1E40AF':'2px solid transparent'}" onclick="toggleExamAnswer(${q.id},'${letter}')">
+          <div class="opt-letter" style="background:${isSel?'#1E40AF':'#F3F4F6'};color:${isSel?'#fff':'#4B5563'}">${letter}</div>
+          <span class="opt-text">${text}</span></div>`;
+      });
+    }
+    html += `</div>`;
+  }
+
+  html += `<div class="flex-row p16">
+    <button class="btn btn-outline" style="flex:1" onclick="prevMockQ()" ${currentQIndex===0?'disabled':''}>← 上一题</button>
+    <button class="btn btn-outline" style="flex:1" onclick="nextMockQ()" ${currentQIndex>=currentQuestionList.length-1?'disabled':''}>下一题 →</button>
+    <button class="btn btn-red" style="flex:1" onclick="if(confirm('确定交卷？'))submitMockExam()">交卷</button>
+  </div>`;
+
+  document.getElementById('prac-question').innerHTML = html;
+}
+
+function jumpToMockQ(i) { currentQIndex = i; renderMockExamQuestion(); }
+function prevMockQ() { if (currentQIndex > 0) { currentQIndex--; renderMockExamQuestion(); } }
+function nextMockQ() { if (currentQIndex < currentQuestionList.length - 1) { currentQIndex++; renderMockExamQuestion(); } }
+
+async function submitMockExam() {
+  examSubmitted = true;
+  let score = 0;
+  const results = [];
+  for (const q of currentQuestionList) {
+    const userAns = [...(examAnswers[q.id] || [])].sort().join('');
+    const correct = userAns === q.answer.trim();
+    if (correct) score++;
+    results.push({ question: q, userAnswer: userAns, correct });
+    await dbPut('history', { questionId: q.id, userAnswer: userAns, correct, timestamp: Date.now() });
+    if (!correct) {
+      const today = getToday();
+      if (!(await dbGet('ebbinghaus', q.id))) {
+        await dbPut('ebbinghaus', { questionId: q.id, reviewStage: 0, nextReviewDate: addDays(today, 1), lastReviewDate: today, reviewCount: 0 });
+      }
+    }
+  }
+
+  let html = `<div class="card" style="text-align:center;background:${score/currentQuestionList.length>=0.6?'#E8F5E9':'#FFEBEE'}">
+    <h3>${score/currentQuestionList.length>=0.6?'通过 ✓':'未通过 ✗'}</h3>
+    <p style="font-size:36px;font-weight:800">${score} / ${currentQuestionList.length}</p>
+    <p class="text-sm">正确率 ${Math.round(score/currentQuestionList.length*100)}%</p></div>`;
+
+  results.forEach((r, i) => {
+    html += `<div class="card mt8"><div class="flex-row"><span style="font-size:18px">${r.correct?'✓':'✗'}</span><span>${i+1}. ${getStemPreview(r.question)}</span></div>`;
+    if (!r.correct) html += `<p class="text-sm mt8"><span style="color:#DC2626">你的答案: ${r.userAnswer||'未作答'}</span> → <span style="color:#4CAF50">正确答案: ${r.question.answer}</span></p>`;
+    html += `</div>`;
+  });
+
+  html += `<button class="btn btn-blue mt12" onclick="navTo('home')">返回首页</button>`;
+  document.getElementById('prac-question').innerHTML = html;
+  updateStats();
+  updateEbbBadge();
+}
+
+// ==================== EBBINGHAUS ====================
+async function renderEbbinghaus() {
+  const today = getToday();
+  const allEbbs = await dbGetAll('ebbinghaus');
+  const dueReviews = allEbbs.filter(e => e.nextReviewDate <= today);
+  const totalCount = allEbbs.length;
+
+  const intervals = [1, 2, 4, 7, 15, 30];
+  const stageLabels = ['1天', '2天', '4天', '7天', '15天', '30天'];
+  const stageDist = [0,0,0,0,0,0];
+  allEbbs.forEach(e => { if (e.reviewStage >= 0 && e.reviewStage < 6) stageDist[e.reviewStage]++; });
+  const maxStage = Math.max(...stageDist, 1);
+
+  let html = `<div class="stats-card"><div class="stat-item"><span class="stat-val">${dueReviews.length}</span><span class="stat-lbl">待复习</span></div><div class="stat-item"><span class="stat-val">${totalCount}</span><span class="stat-lbl">复习中</span></div></div>`;
+
+  if (dueReviews.length > 0) {
+    html += `<div class="section-title">今日待复习</div>`;
+    for (const e of dueReviews.slice(0, 10)) {
+      const q = questions.find(q => q.id === e.questionId);
+      if (!q) continue;
+      html += `<div class="card" onclick="startEbbinghausReview(${q.id})" style="cursor:pointer">
+        <div class="flex-between"><span style="font-weight:600">题目 ${q.id}</span><span class="tag tag-orange">阶段 ${e.reviewStage+1}</span></div>
+        <p class="text-sm mt4">${getStemPreview(q)}</p></div>`;
+    }
+    if (dueReviews.length > 0) html += `<div class="p16"><button class="btn btn-blue" onclick="startEbbinghausReview(0)">开始复习 (${dueReviews.length}题)</button></div>`;
+  } else {
+    html += `<div class="card" style="text-align:center"><p style="font-size:48px">🎉</p><h3>暂无待复习题目</h3><p class="text-sm">答错题目会自动加入复习计划</p></div>`;
+  }
+
+  html += `<div class="section-title">阶段分布</div><div class="card">`;
+  stageLabels.forEach((label, i) => {
+    html += `<div class="flex-row mb8"><span style="width:40px;font-size:13px">${label}</span><div class="progress-bar" style="flex:1"><div class="progress-fill" style="width:${stageDist[i]/maxStage*100}%;background:${i<2?'#EF4444':i<4?'#F59E0B':'#10B981'}"></div></div><span style="width:30px;font-size:13px;text-align:right">${stageDist[i]}</span></div>`;
+  });
+  html += `</div>`;
+
+  html += `<div class="card mt8"><h3>📖 复习间隔</h3><p class="text-sm">1天 → 2天 → 4天 → 7天 → 15天 → 30天</p><p class="text-xs mt4">答对自动进入下一阶段，答错退回第1阶段</p></div>`;
+
+  document.getElementById('ebb-content').innerHTML = html;
+}
+
+async function startEbbinghausReview(qid) {
+  const today = getToday();
+  const allEbbs = await dbGetAll('ebbinghaus');
+  const dueReviews = allEbbs.filter(e => e.nextReviewDate <= today);
+  if (dueReviews.length === 0) return;
+
+  currentMode = 'ebbinghaus';
+  currentQuestionList = dueReviews.map(e => questions.find(q => q.id === e.questionId)).filter(Boolean);
+  currentQIndex = qid ? currentQuestionList.findIndex(q => q.id === qid) : 0;
+  if (currentQIndex < 0) currentQIndex = 0;
+  selectedAnswers = new Set();
+  showResult = false;
+  navTo('practice');
+  document.getElementById('page-practice').classList.add('active');
+  document.querySelectorAll('.page').forEach(p => { if (p.id !== 'page-practice') p.classList.remove('active'); });
+  document.getElementById('prac-title').textContent = '艾宾浩斯复习';
+  document.getElementById('prac-setup').classList.add('hidden');
+  document.getElementById('prac-result').classList.add('hidden');
+  document.getElementById('prac-question').classList.remove('hidden');
+  renderEbbinghausQuestion();
+}
+
+function renderEbbinghausQuestion() {
+  if (currentQIndex >= currentQuestionList.length) {
+    document.getElementById('prac-question').innerHTML = '<div class="p16" style="text-align:center"><p style="font-size:48px">🎉</p><h3>复习完成！</h3><button class="btn btn-blue mt16" onclick="navTo(\'home\')">返回首页</button></div>';
+    return;
+  }
+  const q = currentQuestionList[currentQIndex];
+  const opts = getOptions(q);
+  let html = `<div class="q-card"><span class="text-sm" style="color:#7C3AED">🔄 艾宾浩斯复习 ${currentQIndex+1}/${currentQuestionList.length}</span>
+    <span class="q-type" style="margin-left:8px;background:#F5F3FF;color:#7C3AED">${q.qtype||'单选题'}</span>
+    <div class="q-stem mt8">${q.stem}</div>`;
+
+  if (q.qtype === '判断题') {
+    html += `<div class="flex-row">`;
+    ['对','错'].forEach(v => {
+      const sel = selectedAnswers.has(v);
+      let bg = sel ? '#1E40AF' : '#F3F4F6';
+      let color = sel ? '#fff' : '#4B5563';
+      if (showResult) {
+        const isRight = q.answer.trim() === v;
+        if (isRight) { bg = '#4CAF50'; color = '#fff'; }
+        else if (sel && !isRight) { bg = '#F44336'; color = '#fff'; }
+      }
+      html += `<button class="btn" style="flex:1;height:48px;background:${bg};color:${color}" ${showResult?'disabled':''} onclick="toggleAnswer('${v}')">${v==='对'?'✓ 对':'✗ 错'}</button>`;
+    });
+    html += `</div>`;
+  } else {
+    const correctAns = q.answer.trim();
+    opts.forEach(([letter, text]) => {
+      const sel = selectedAnswers.has(letter);
+      let bg = sel ? '#DBEAFE' : '#fff';
+      let border = sel ? '2px solid #1E40AF' : '2px solid transparent';
+      let circleBg = sel ? '#1E40AF' : '#F3F4F6';
+      let circleColor = sel ? '#fff' : '#4B5563';
+      if (showResult) {
+        const isRight = correctAns.includes(letter);
+        if (isRight) { bg = '#E8F5E9'; border = '2px solid #4CAF50'; circleBg = '#4CAF50'; circleColor = '#fff'; }
+        else if (sel && !isRight) { bg = '#FFEBEE'; border = '2px solid #F44336'; circleBg = '#F44336'; circleColor = '#fff'; }
+      }
+      html += `<div class="opt" style="background:${bg};border:${border}" onclick="${showResult?'':'toggleAnswer(\''+letter+'\')'}">
+        <div class="opt-letter" style="background:${circleBg};color:${circleColor}">${letter}</div>
+        <span class="opt-text">${text}</span></div>`;
+    });
+  }
+  html += `</div>`;
+
+  if (!showResult) {
+    html += `<button class="btn btn-dark mt12" onclick="submitEbbinghausAnswer()" ${selectedAnswers.size===0?'disabled':''}>提交答案</button>`;
+  } else {
+    html += `<div class="card mt12" style="background:${isCorrect?'#E8F5E9':'#FFEBEE'}">
+      <div class="flex-row"><span style="font-size:24px">${isCorrect?'✓':'✗'}</span><div><strong>${isCorrect?'回答正确！':'回答错误'}</strong>${!isCorrect?`<p class="text-sm">正确答案: ${q.answer}</p>`:''}</div></div></div>`;
+    html += `<button class="btn btn-blue mt12" onclick="nextEbbinghausQuestion()">下一题 →</button>`;
+  }
+
+  document.getElementById('prac-question').innerHTML = html;
+}
+
+async function submitEbbinghausAnswer() {
+  const q = currentQuestionList[currentQIndex];
+  const userAns = [...selectedAnswers].sort().join('');
+  isCorrect = userAns === q.answer.trim();
+  const today = getToday();
+
+  await dbPut('history', { questionId: q.id, userAnswer: userAns, correct: isCorrect, timestamp: Date.now() });
+
+  const existing = await dbGet('ebbinghaus', q.id);
+  if (existing) {
+    if (isCorrect) {
+      existing.reviewStage = Math.min(existing.reviewStage + 1, 5);
+      const intervals = [1, 2, 4, 7, 15, 30];
+      existing.nextReviewDate = addDays(today, intervals[existing.reviewStage]);
+    } else {
+      existing.reviewStage = 0;
+      existing.nextReviewDate = addDays(today, 1);
+    }
+    existing.lastReviewDate = today;
+    existing.reviewCount = (existing.reviewCount || 0) + 1;
+    await dbPut('ebbinghaus', existing);
+  } else if (!isCorrect) {
+    await dbPut('ebbinghaus', { questionId: q.id, reviewStage: 0, nextReviewDate: addDays(today, 1), lastReviewDate: today, reviewCount: 0 });
+  }
+
+  showResult = true;
+  renderEbbinghausQuestion();
+  updateStats();
+  updateEbbBadge();
+}
+
+function nextEbbinghausQuestion() {
+  currentQIndex++;
+  selectedAnswers = new Set();
+  showResult = false;
+  if (currentQIndex >= currentQuestionList.length) {
+    document.getElementById('prac-question').innerHTML = '<div class="p16" style="text-align:center"><p style="font-size:48px">🎉</p><h3>复习完成！</h3><button class="btn btn-blue mt16" onclick="navTo(\'home\')">返回首页</button></div>';
+    return;
+  }
+  renderEbbinghausQuestion();
+}
+
+// ==================== BROWSE ====================
+function initBrowseFilters() {
+  const cats = [...new Set(questions.map(q => q.category).filter(Boolean))].sort();
+  const diffs = [...new Set(questions.map(q => q.difficulty).filter(Boolean))].sort();
+  document.getElementById('browse-cat').innerHTML = '<option value="">全部类别</option>' + cats.map(c => `<option>${c}</option>`).join('');
+  document.getElementById('browse-diff').innerHTML = '<option value="">全部难度</option>' + diffs.map(d => `<option>${d}</option>`).join('');
+}
+
+function renderBrowse() {
+  const search = (document.getElementById('browse-search')?.value || '').toLowerCase();
+  const cat = document.getElementById('browse-cat')?.value || '';
+  const diff = document.getElementById('browse-diff')?.value || '';
+
+  let filtered = questions;
+  if (search) filtered = filtered.filter(q => q.stem.includes(search) || (q.category||'').includes(search));
+  if (cat) filtered = filtered.filter(q => q.category === cat);
+  if (diff) filtered = filtered.filter(q => q.difficulty === diff);
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  if (browsePage > totalPages) browsePage = totalPages || 1;
+  const start = (browsePage - 1) * PAGE_SIZE;
+  const page = filtered.slice(start, start + PAGE_SIZE);
+
+  let html = `<p class="text-sm">共 ${filtered.length} 题</p>`;
+  page.forEach(q => {
+    html += `<div class="card" style="cursor:pointer" onclick="browseQuestion(${q.id})">
+      <div class="flex-row"><span style="font-weight:600;color:#4F46E5">题目 ${q.id}</span>`;
+    if (q.qtype) html += `<span class="tag tag-blue">${q.qtype}</span>`;
+    if (q.difficulty && q.difficulty !== '无') html += `<span class="tag tag-orange">${q.difficulty}</span>`;
+    html += `</div><p class="text-sm mt4">${getStemPreview(q)}</p></div>`;
+  });
+
+  html += `<div class="flex-row mt12" style="justify-content:center;gap:12px">`;
+  html += `<button class="btn btn-outline" style="width:auto" onclick="browsePage=Math.max(1,browsePage-1);renderBrowse()" ${browsePage===1?'disabled':''}>← 上一页</button>`;
+  html += `<span class="text-sm">${browsePage} / ${totalPages||1}</span>`;
+  html += `<button class="btn btn-outline" style="width:auto" onclick="browsePage=Math.min(totalPages,browsePage+1);renderBrowse()" ${browsePage>=totalPages?'disabled':''}>下一页 →</button></div>`;
+
+  document.getElementById('browse-list').innerHTML = html;
+}
+
+function browseQuestion(qid) {
+  currentMode = 'browse';
+  const q = questions.find(q => q.id === qid);
+  if (!q) return;
+  currentQuestionList = [q];
+  currentQIndex = 0;
+  selectedAnswers = new Set();
+  showResult = false;
+  navTo('practice');
+  document.getElementById('page-practice').classList.add('active');
+  document.querySelectorAll('.page').forEach(p => { if (p.id !== 'page-practice') p.classList.remove('active'); });
+  document.getElementById('prac-title').textContent = '浏览题目';
+  document.getElementById('prac-setup').classList.add('hidden');
+  document.getElementById('prac-question').classList.remove('hidden');
+  renderQuestion();
+}
+
+// ==================== FAVORITES ====================
+async function renderFavorites() {
+  const favs = await dbGetAll('favorites');
+  if (favs.length === 0) {
+    document.getElementById('fav-content').innerHTML = '<div class="card" style="text-align:center"><p style="font-size:48px">❤️</p><h3>暂无收藏</h3><p class="text-sm">做题时点击收藏按钮</p></div>';
+    return;
+  }
+  let html = '';
+  for (const f of favs) {
+    const q = questions.find(q => q.id === f.questionId);
+    if (!q) continue;
+    html += `<div class="card">
+      <div class="flex-between"><span style="font-weight:600">题目 ${q.id}</span>
+        <div><span class="tag tag-blue" style="cursor:pointer" onclick="editTag(${q.id},'${(f.tag||'').replace(/'/g,"\\'")}')">${f.tag || '+ 标签'}</span>
+        <span style="cursor:pointer;color:#DC2626;margin-left:8px" onclick="removeFav(${q.id})">✕</span></div></div>
+      <p class="text-sm mt4" style="cursor:pointer" onclick="browseQuestion(${q.id})">${getStemPreview(q)}</p></div>`;
+  }
+  document.getElementById('fav-content').innerHTML = html;
+}
+
+async function editTag(qid, currentTag) {
+  const tag = prompt('输入标签名:', currentTag);
+  if (tag !== null) {
+    await dbPut('favorites', { questionId: qid, tag: tag });
+    renderFavorites();
+  }
+}
+
+async function removeFav(qid) {
+  await dbDelete('favorites', qid);
+  renderFavorites();
+}
+
+// ==================== HISTORY ====================
+async function renderHistory() {
+  const hist = (await dbGetAll('history')).sort((a, b) => b.timestamp - a.timestamp).slice(0, 100);
+  if (hist.length === 0) {
+    document.getElementById('hist-content').innerHTML = '<div class="card" style="text-align:center"><p style="font-size:48px">📋</p><h3>暂无记录</h3></div>';
+    return;
+  }
+  let html = '';
+  hist.forEach(h => {
+    const q = questions.find(q => q.id === h.questionId);
+    const stem = q ? getStemPreview(q) : `题目 ${h.questionId}`;
+    const date = new Date(h.timestamp);
+    const timeStr = `${date.getMonth()+1}/${date.getDate()} ${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`;
+    html += `<div class="card" style="cursor:pointer" onclick="browseQuestion(${h.questionId})">
+      <div class="flex-row"><span style="font-size:18px;color:${h.correct?'#4CAF50':'#F44336'}">${h.correct?'✓':'✗'}</span>
+        <span class="tag ${h.correct?'tag-green':'tag-red'}">${h.correct?'正确':'错误'}</span>
+        <span style="margin-left:auto;font-size:11px;color:#9CA3AF">${timeStr}</span></div>
+      <p class="text-sm mt4">${stem}</p><p class="text-xs">你答: ${h.userAnswer||'未作答'}</p></div>`;
+  });
+  document.getElementById('hist-content').innerHTML = html;
+}
+
+async function clearHistory() {
+  await dbClear('history');
+  await dbClear('ebbinghaus');
+  renderHistory();
+  updateStats();
+  updateEbbBadge();
+}
+
+async function resetAll() {
+  await dbClear('history');
+  await dbClear('favorites');
+  await dbClear('ebbinghaus');
+  await dbClear('progress');
+  navTo('home');
+  updateStats();
+  updateEbbBadge();
+}
+
+// ==================== STATISTICS ====================
+async function renderStatistics() {
+  const hist = await dbGetAll('history');
+  const total = hist.length;
+  const correct = hist.filter(h => h.correct).length;
+  const acc = total > 0 ? (correct / total * 100) : 0;
+
+  let html = `<div class="stats-card" style="margin:10px 0"><div class="stat-item"><span class="stat-val">${questions.length}</span><span class="stat-lbl">题库</span></div><div class="stat-item"><span class="stat-val">${correct}</span><span class="stat-lbl">正确</span></div><div class="stat-item"><span class="stat-val">${acc.toFixed(0)}%</span><span class="stat-lbl">正确率</span></div></div>`;
+
+  // Per-difficulty stats
+  const diffs = ['简单', '中等', '困难'];
+  html += `<div class="card"><h3>难度统计</h3>`;
+  diffs.forEach(d => {
+    const qs = questions.filter(q => q.difficulty === d);
+    const h = hist.filter(h => qs.some(q => q.id === h.questionId));
+    const c = h.filter(h => h.correct).length;
+    const da = h.length > 0 ? Math.round(c / h.length * 100) : 0;
+    html += `<div class="flex-between mb8"><span>${d}</span><span style="color:${da>=80?'#4CAF50':da>=60?'#F59E0B':'#EF4444'};font-weight:600">${da}%</span><span class="text-xs">${c}/${h.length}</span></div>`;
+  });
+  html += `</div>`;
+
+  // Worst questions
+  const wrongCounts = {};
+  hist.filter(h => !h.correct).forEach(h => { wrongCounts[h.questionId] = (wrongCounts[h.questionId] || 0) + 1; });
+  const worst = Object.entries(wrongCounts).sort((a, b) => b[1] - a[1]).slice(0, 10);
+
+  if (worst.length > 0) {
+    html += `<div class="card mt8"><h3>⚠️ 易错题目 TOP ${worst.length}</h3>`;
+    worst.forEach(([qid, count], i) => {
+      const q = questions.find(q => q.id === parseInt(qid));
+      if (q) html += `<div class="flex-between mb4" style="cursor:pointer" onclick="browseQuestion(${qid})"><span>${i+1}. ${getStemPreview(q)}</span><span class="tag tag-red">错${count}次</span></div>`;
+    });
+    html += `</div>`;
+  }
+
+  document.getElementById('stats-content').innerHTML = html;
+}
+
+// ==================== SETTINGS ====================
+async function loadSettings() {
+  const url = await dbGet('settings', 'apiUrl');
+  const key = await dbGet('settings', 'apiKey');
+  const model = await dbGet('settings', 'aiModel');
+  const ghToken = await dbGet('settings', 'github_token');
+  const ghRepo = await dbGet('settings', 'github_repo');
+  if (url) document.getElementById('set-url').value = url.value;
+  if (key) document.getElementById('set-key').value = key.value;
+  if (model) document.getElementById('set-model').value = model.value;
+  if (ghToken) document.getElementById('set-gh-token').value = ghToken.value;
+  if (ghRepo) document.getElementById('set-gh-repo').value = ghRepo.value;
+}
+
+async function saveSettings() {
+  await dbPut('settings', { key: 'apiUrl', value: document.getElementById('set-url').value });
+  await dbPut('settings', { key: 'apiKey', value: document.getElementById('set-key').value });
+  await dbPut('settings', { key: 'aiModel', value: document.getElementById('set-model').value });
+  await dbPut('settings', { key: 'github_token', value: document.getElementById('set-gh-token').value });
+  await dbPut('settings', { key: 'github_repo', value: document.getElementById('set-gh-repo').value });
+  alert('设置已保存');
+}
+
+// ==================== IMPORT/EXPORT ====================
+async function importFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  // 密码验证
+  const savedPwd = await dbGet('settings', 'admin_password');
+  const correctPwd = savedPwd ? savedPwd.value : ADMIN_DEFAULT_PASSWORD;
+  const inputPwd = prompt('请输入管理密码以导入题库：');
+  if (inputPwd !== correctPwd) { alert('密码错误！'); input.value = ''; return; }
+
+  const ext = file.name.split('.').pop().toLowerCase();
+  let rows = [];
+
+  if (ext === 'xlsx' || ext === 'xls') {
+    // 用 SheetJS 解析 Excel
+    try {
+      const data = await file.arrayBuffer();
+      const wb = XLSX.read(data, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+      if (rows.length < 2) { alert('Excel格式错误：无数据行'); input.value = ''; return; }
+      // 移除表头
+      rows.shift();
+    } catch(e) { alert('Excel解析失败: ' + e.message); input.value = ''; return; }
+  } else {
+    // CSV
+    const text = await file.text();
+    const lines = text.split('\n');
+    if (lines.length < 2) { alert('CSV格式错误'); input.value = ''; return; }
+    // 跳过BOM表头
+    for (let i = 1; i < lines.length; i++) {
+      if (!lines[i].trim()) continue;
+      const vals = parseCSVLine(lines[i]);
+      if (vals.length >= 3) rows.push(vals);
+    }
+  }
+
+  let inserted = 0, skipped = 0;
+
+  // 用最大的题号作为新题起点
+  let maxId = questions.reduce((m, q) => Math.max(m, q.id), 0);
+
+  for (const row of rows) {
+    const vals = Array.isArray(row) ? row : Object.values(row);
+    if (vals.length < 3) { skipped++; continue; }
+
+    const idStr = String(vals[0]).trim();
+    const origId = parseInt(idStr);
+    if (!origId || isNaN(origId)) { skipped++; continue; }
+
+    const stem = String(vals[1]||'').trim();
+    if (!stem) { skipped++; continue; }
+
+    // 无论原 ID 是什么，都用新 ID 追加，不覆盖
+    maxId++;
+    const q = {
+      id: maxId, stem,
+      A: String(vals[2]||'').trim(), B: String(vals[3]||'').trim(),
+      C: String(vals[4]||'').trim(), D: String(vals[5]||'').trim(), E: String(vals[6]||'').trim(),
+      answer: String(vals[7]||'').trim(), difficulty: String(vals[8]||'无').trim() || '无',
+      qtype: String(vals[9]||'单选题').trim() || '单选题', category: String(vals[10]||'').trim()
+    };
+
+    questions.push(q);
+    await dbPut('questions', q);
+    inserted++;
+  }
+
+  questions.sort((a, b) => a.id - b.id);
+  alert(`导入完成！\n✅ 新增 ${inserted} 题\n⏭️ 跳过 ${skipped} 行\n\n新题目编号从 ${maxId - inserted + 1} 开始`);
+  input.value = '';
+  updateStats();
+}
+
+function parseCSVLine(line) {
+  const result = [];
+  let current = '', inQuotes = false;
+  for (const ch of line) {
+    if (ch === '"') { inQuotes = !inQuotes; }
+    else if (ch === ',' && !inQuotes) { result.push(current); current = ''; }
+    else { current += ch; }
+  }
+  result.push(current);
+  return result;
+}
+
+function exportCSV() {
+  let csv = '﻿题号,题干,A,B,C,D,E,答案,难度,题型,类别\n';
+  questions.forEach(q => {
+    const row = [q.id, q.stem, q.A, q.B, q.C, q.D, q.E, q.answer, q.difficulty, q.qtype, q.category];
+    csv += row.map(v => `"${(v||'').replace(/"/g,'""')}"`).join(',') + '\n';
+  });
+  downloadFile('题库导出.csv', csv, 'text/csv');
+}
+
+async function exportSyncData() {
+  const data = {
+    history: await dbGetAll('history'),
+    favorites: await dbGetAll('favorites'),
+    ebbinghaus: await dbGetAll('ebbinghaus'),
+    settings: await dbGetAll('settings'),
+    progress: await dbGetAll('progress'),
+    exportedAt: new Date().toISOString()
+  };
+  const json = JSON.stringify(data, null, 2);
+  if (navigator.share) {
+    try { await navigator.share({ title: '刷题神器学习数据', text: json }); return; } catch(e) {}
+  }
+  downloadFile('学习数据.json', json, 'application/json');
+}
+
+async function importSyncData() {
+  const text = document.getElementById('sync-json')?.value || document.getElementById('sync-json2')?.value;
+  if (!text.trim()) { alert('请粘贴 JSON 数据'); return; }
+  try {
+    const data = JSON.parse(text);
+    let count = 0;
+    if (data.history) { for (const h of data.history) { await dbPut('history', h); count++; } }
+    if (data.favorites) { for (const f of data.favorites) { await dbPut('favorites', f); count++; } }
+    if (data.ebbinghaus) { for (const e of data.ebbinghaus) { await dbPut('ebbinghaus', e); count++; } }
+    if (data.settings) { for (const s of data.settings) { await dbPut('settings', s); count++; } }
+    if (data.progress) { for (const p of data.progress) { await dbPut('progress', p); count++; } }
+    alert(`导入完成！共导入 ${count} 条数据`);
+    updateStats();
+    updateEbbBadge();
+  } catch(e) { alert('JSON 格式错误: ' + e.message); }
+}
+
+function showImportSync() {
+  ['sync-import-area', 'sync-import-area2'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('hidden');
+  });
+}
+
+function downloadFile(filename, content, mimeType) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ==================== ADMIN ====================
+const ADMIN_DEFAULT_PASSWORD = 'admin123';
+let adminAuthed = false;
+
+async function showAdminGate() {
+  const savedPwd = await dbGet('settings', 'admin_password');
+  const pwd = savedPwd ? savedPwd.value : ADMIN_DEFAULT_PASSWORD;
+
+  document.getElementById('admin-content').innerHTML = `
+    <div class="card" style="text-align:center">
+      <p style="font-size:48px">🔑</p>
+      <h3>题库管理登录</h3>
+      <p class="text-sm mt8 mb12">请输入管理密码</p>
+      <input type="password" id="admin-pwd-input" class="mb8" placeholder="默认密码: admin123">
+      <div class="flex-row">
+        <button class="btn btn-dark" style="flex:1" onclick="checkAdminPassword('${pwd}')">确认</button>
+        <button class="btn btn-outline" style="flex:1" onclick="navTo('settings')">取消</button>
+      </div>
+      <p class="text-xs mt8" style="cursor:pointer;color:#4F46E5" onclick="showChangePassword()">修改管理密码</p>
+    </div>`;
+  navTo('admin');
+  document.getElementById('page-admin').classList.add('active');
+  document.querySelectorAll('.page').forEach(p => { if (p.id !== 'page-admin') p.classList.remove('active'); });
+}
+
+function checkAdminPassword(correctPwd) {
+  const input = document.getElementById('admin-pwd-input').value;
+  if (input === correctPwd) {
+    adminAuthed = true;
+    renderAdmin();
+  } else {
+    alert('密码错误！');
+  }
+}
+
+async function showChangePassword() {
+  const newPwd = prompt('请输入新管理密码（6位以上）:');
+  if (!newPwd || newPwd.length < 6) { alert('密码至少6位'); return; }
+  await dbPut('settings', { key: 'admin_password', value: newPwd });
+  alert('管理密码已修改！');
+}
+
+function renderAdmin() {
+  if (!adminAuthed) { showAdminGate(); return; }
+  navTo('admin');
+  document.getElementById('page-admin').classList.add('active');
+  document.querySelectorAll('.page').forEach(p => { if (p.id !== 'page-admin') p.classList.remove('active'); });
+  renderAdminList();
+}
+
+let adminSearchTerm = '';
+let adminFilterCat = '';
+let adminPage = 1;
+let selectedIds = new Set();
+const ADMIN_PAGE_SIZE = 15;
+
+function toggleSelectAll(pageQIds, select) {
+  if (select) {
+    pageQIds.forEach(id => selectedIds.add(id));
+  } else {
+    pageQIds.forEach(id => selectedIds.delete(id));
+  }
+  renderAdminList();
+}
+
+function toggleSelectId(id) {
+  if (selectedIds.has(id)) selectedIds.delete(id);
+  else selectedIds.add(id);
+  renderAdminList();
+}
+
+async function batchDeleteSelected() {
+  if (selectedIds.size === 0) return;
+  if (!confirm(`确认删除选中的 ${selectedIds.size} 道题目？此操作不可恢复。`)) return;
+  for (const id of selectedIds) {
+    questions = questions.filter(q => q.id !== id);
+    await dbDelete('questions', id);
+  }
+  const count = selectedIds.size;
+  selectedIds.clear();
+  renderAdminList();
+  updateStats();
+  alert(`已删除 ${count} 题`);
+}
+
+function renderAdminList() {
+  const search = adminSearchTerm.toLowerCase();
+  let filtered = questions;
+  if (search) filtered = filtered.filter(q => (q.stem||'').toLowerCase().includes(search) || String(q.id).includes(search) || (q.category||'').includes(search));
+  if (adminFilterCat) filtered = filtered.filter(q => q.category === adminFilterCat);
+
+  const cats = [...new Set(questions.map(q => q.category).filter(Boolean))].sort();
+  const totalPages = Math.ceil(filtered.length / ADMIN_PAGE_SIZE);
+  if (adminPage > totalPages) adminPage = totalPages || 1;
+  const start = (adminPage - 1) * ADMIN_PAGE_SIZE;
+  const page = filtered.slice(start, start + ADMIN_PAGE_SIZE);
+  const pageQIds = page.map(q => q.id);
+  const allPageSelected = pageQIds.length > 0 && pageQIds.every(id => selectedIds.has(id));
+
+  let html = `<div class="flex-between mb12">
+    <span style="font-weight:700">题库管理</span>
+    <div class="flex-row">
+      <button class="btn btn-outline" style="width:auto;padding:6px 12px;font-size:13px" onclick="showChangePassword()">改密</button>
+      <button class="btn btn-blue" style="width:auto;padding:6px 12px;font-size:13px" onclick="openAddDialog()">+ 新增题目</button>
+      <button class="btn btn-green" style="width:auto;padding:6px 12px;font-size:13px" onclick="syncToGitHub()">☁️ 保存到云端</button>
+      <button class="btn btn-outline" style="width:auto;padding:6px 12px;font-size:13px" onclick="exportQuestionsJSON()">📤 导出JSON</button>
+      <button class="btn btn-outline" style="width:auto;padding:6px 12px;font-size:13px;color:#DC2626;border-color:#DC2626" onclick="adminAuthed=false;navTo('settings')">退出</button>
+    </div></div>`;
+
+  html += `<div class="flex-row mb8">
+    <input type="text" id="admin-search" placeholder="🔍 搜索题号/内容..." style="flex:2" value="${escapeHtml(adminSearchTerm)}" oninput="adminSearchTerm=this.value;adminPage=1;renderAdminList()">
+    <select style="flex:1" onchange="adminFilterCat=this.value;adminPage=1;renderAdminList()">
+      <option value="">全部类别</option>${cats.map(c => `<option value="${c}" ${adminFilterCat===c?'selected':''}>${c}</option>`).join('')}
+    </select></div>`;
+
+  html += `<div class="flex-between mb8">
+    <span class="text-sm">共 ${filtered.length} 题（总数 ${questions.length}）${selectedIds.size>0?` | 已选 ${selectedIds.size} 题`:''}</span>
+    <span class="text-sm" style="cursor:pointer;color:#4F46E5" onclick="toggleSelectAll([${pageQIds}], ${!allPageSelected})">${allPageSelected?'取消全选':'全选本页'}</span>
+  </div>`;
+
+  if (selectedIds.size > 0) {
+    html += '<div class="mb8"><button class="btn btn-red" style="width:auto;padding:8px 16px" onclick="batchDeleteSelected()">🗑️ 删除选中的 ' + selectedIds.size + ' 题</button></div>';
+  }
+
+  page.forEach(q => {
+    const opts = getOptions(q);
+    const optPreview = opts.map(([l, t]) => `${l}: ${t.length>15?t.substring(0,15)+'...':t}`).join(' | ') || '无选项';
+    const checked = selectedIds.has(q.id);
+    html += `<div class="card" style="margin:4px 0">
+      <div class="flex-row" style="align-items:flex-start">
+        <input type="checkbox" style="width:18px;height:18px;margin-top:2px;flex-shrink:0;accent-color:#1E40AF" ${checked?'checked':''} onclick="event.stopPropagation();toggleSelectId(${q.id})">
+        <div style="flex:1;cursor:pointer" onclick="openEditDialog(${q.id})">
+          <div class="flex-row"><span style="font-weight:600;color:#4F46E5">#${q.id}</span>
+          <span class="tag tag-blue">${q.qtype||'单选题'}</span>
+          ${q.difficulty&&q.difficulty!=='无'?`<span class="tag tag-orange">${q.difficulty}</span>`:''}
+          ${q.category?`<span class="tag tag-green">${q.category}</span>`:''}
+          <span style="font-size:12px;color:#9CA3AF">答案: ${q.answer}</span></div>
+          <p class="text-sm mt4">${getStemPreview(q)}</p>
+          <p class="text-xs mt2" style="color:#9CA3AF">${optPreview}</p>
+        </div>
+        <button class="btn btn-outline" style="width:auto;padding:4px 10px;font-size:11px;color:#DC2626;border-color:#DC2626;flex-shrink:0" onclick="event.stopPropagation();deleteQuestion(${q.id})">删除</button>
+      </div></div>`;
+  });
+
+  html += `<div class="flex-row mt12" style="justify-content:center;gap:12px">
+    <button class="btn btn-outline" style="width:auto" onclick="adminPage=Math.max(1,adminPage-1);renderAdminList()" ${adminPage===1?'disabled':''}>← 上一页</button>
+    <span class="text-sm">${adminPage} / ${totalPages||1}</span>
+    <button class="btn btn-outline" style="width:auto" onclick="adminPage=Math.min(totalPages,adminPage+1);renderAdminList()" ${adminPage>=totalPages?'disabled':''}>下一页 →</button></div>`;
+
+  document.getElementById('admin-content').innerHTML = html;
+}
+
+function openEditDialog(qid) {
+  const q = questions.find(q => q.id === qid);
+  if (!q) return;
+  showQuestionEditor(q, 'edit');
+}
+
+function openAddDialog() {
+  const maxId = questions.reduce((m, q) => Math.max(m, q.id), 0);
+  const newQ = { id: maxId + 1, stem: '', A: '', B: '', C: '', D: '', E: '', answer: '', difficulty: '无', qtype: '单选题', category: '' };
+  showQuestionEditor(newQ, 'add');
+}
+
+function showQuestionEditor(q, mode) {
+  const title = mode === 'add' ? '新增题目' : `编辑题目 #${q.id}`;
+  const saveBtn = mode === 'add' ? '新增' : '保存';
+
+  const html = `<div class="modal-overlay" onclick="if(event.target===this)this.remove()">
+    <div class="modal-box modal-wide">
+      <h3 style="margin-bottom:12px">${title}</h3>
+      <div class="admin-row mb8"><label>题号</label><input type="number" id="edit-id" value="${q.id}" oninput="this.value=this.value.replace(/[^0-9]/g,'')"></div>
+      <div class="admin-row mb8"><label>题型</label><select id="edit-qtype"><option value="单选题" ${(q.qtype||'单选题')==='单选题'?'selected':''}>单选题</option><option value="多选题" ${q.qtype==='多选题'?'selected':''}>多选题</option><option value="判断题" ${q.qtype==='判断题'?'selected':''}>判断题</option></select></div>
+      <div class="admin-row mb8"><label>题干</label><textarea id="edit-stem">${escapeHtml(q.stem||'')}</textarea></div>
+      <div class="admin-row mb8"><label>A</label><input type="text" id="edit-A" value="${escapeHtml(q.A||'')}"></div>
+      <div class="admin-row mb8"><label>B</label><input type="text" id="edit-B" value="${escapeHtml(q.B||'')}"></div>
+      <div class="admin-row mb8"><label>C</label><input type="text" id="edit-C" value="${escapeHtml(q.C||'')}"></div>
+      <div class="admin-row mb8"><label>D</label><input type="text" id="edit-D" value="${escapeHtml(q.D||'')}"></div>
+      <div class="admin-row mb8"><label>E</label><input type="text" id="edit-E" value="${escapeHtml(q.E||'')}"></div>
+      <div class="admin-row mb8"><label>答案</label><input type="text" id="edit-answer" value="${escapeHtml(q.answer||'')}" placeholder="A / AB / 对 / 错"></div>
+      <div class="admin-row mb8"><label>难度</label><select id="edit-diff"><option value="无" ${(q.difficulty||'无')==='无'?'selected':''}>无</option><option value="简单" ${q.difficulty==='简单'?'selected':''}>简单</option><option value="中等" ${q.difficulty==='中等'?'selected':''}>中等</option><option value="困难" ${q.difficulty==='困难'?'selected':''}>困难</option></select></div>
+      <div class="admin-row mb12"><label>类别</label><input type="text" id="edit-cat" value="${escapeHtml(q.category||'')}" placeholder="如: 政治理论"></div>
+      <div class="flex-row">
+        <button class="btn btn-dark" style="flex:1" onclick="${mode==='add'?'saveNewQuestion()':`saveEditedQuestion(${q.id})`}">${saveBtn}</button>
+        <button class="btn btn-outline" style="flex:1" onclick="event.target.closest('.modal-overlay').remove()">取消</button>
+      </div>
+      ${mode==='edit'?`<button class="btn btn-outline mt8" style="width:100%;color:#DC2626;border-color:#DC2626" onclick="if(confirm('确认删除题目 #${q.id}？')){deleteQuestion(${q.id});event.target.closest('.modal-overlay').remove()}">删除此题</button>`:''}
+    </div></div>`;
+
+  const overlay = document.createElement('div');
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay.firstElementChild);
+}
+
+async function saveEditedQuestion(oldId) {
+  const data = readEditorForm();
+  if (!data) return;
+
+  // Remove old, add updated
+  const idx = questions.findIndex(q => q.id === oldId);
+  if (idx >= 0) questions.splice(idx, 1);
+  questions.push(data);
+  questions.sort((a, b) => a.id - b.id);
+
+  if (data.id !== oldId) await dbDelete('questions', oldId);
+  await dbPut('questions', data);
+
+  document.querySelector('.modal-overlay').remove();
+  renderAdminList();
+  updateStats();
+}
+
+async function saveNewQuestion() {
+  const data = readEditorForm();
+  if (!data) return;
+
+  if (questions.some(q => q.id === data.id)) { alert('题号已存在！'); return; }
+  questions.push(data);
+  questions.sort((a, b) => a.id - b.id);
+  await dbPut('questions', data);
+
+  document.querySelector('.modal-overlay').remove();
+  renderAdminList();
+  updateStats();
+}
+
+function readEditorForm() {
+  const id = parseInt(document.getElementById('edit-id').value);
+  const stem = document.getElementById('edit-stem').value.trim();
+  if (!id || isNaN(id)) { alert('请输入有效题号'); return null; }
+  if (!stem) { alert('请输入题干'); return null; }
+  return {
+    id,
+    stem,
+    A: document.getElementById('edit-A').value.trim(),
+    B: document.getElementById('edit-B').value.trim(),
+    C: document.getElementById('edit-C').value.trim(),
+    D: document.getElementById('edit-D').value.trim(),
+    E: document.getElementById('edit-E').value.trim(),
+    answer: document.getElementById('edit-answer').value.trim(),
+    difficulty: document.getElementById('edit-diff').value,
+    qtype: document.getElementById('edit-qtype').value,
+    category: document.getElementById('edit-cat').value.trim(),
+  };
+}
+
+async function deleteQuestion(qid) {
+  if (!confirm(`确认删除题目 #${qid}？此操作不可恢复。`)) return;
+  questions = questions.filter(q => q.id !== qid);
+  await dbDelete('questions', qid);
+  renderAdminList();
+  updateStats();
+}
+
+async function syncToGitHub() {
+  const tokenObj = await dbGet('settings', 'github_token');
+  const repoObj = await dbGet('settings', 'github_repo');
+  const token = tokenObj ? tokenObj.value : '';
+  const repo = repoObj ? repoObj.value : '';
+
+  if (!token || !repo) {
+    alert('请先在设置页面配置 GitHub Token 和仓库名\n\n获取 Token: GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens\n权限: Contents (Read and write)\n仓库: 选择 exam-pwa');
+    return;
+  }
+
+  if (!confirm(`将当前题库 (${questions.length} 题) 保存到 ${repo}？\n保存后约1-2分钟所有用户可看到更新。`)) return;
+
+  try {
+    const sorted = [...questions].sort((a, b) => a.id - b.id);
+    const jsonStr = JSON.stringify(sorted, null, 2);
+    // Base64 encode for GitHub API
+    const content = btoa(unescape(encodeURIComponent(jsonStr)));
+
+    const apiUrl = `https://api.github.com/repos/${repo}/contents/questions.json`;
+
+    // Get current file SHA
+    const getResp = await fetch(apiUrl, {
+      headers: { Authorization: `token ${token}`, Accept: 'application/vnd.github.v3+json' }
+    });
+    const fileInfo = await getResp.json();
+    if (!getResp.ok) throw new Error(fileInfo.message || '获取文件信息失败');
+
+    // Commit update
+    const body = {
+      message: 'Update question bank (' + sorted.length + ' questions)',
+      content: content,
+      sha: fileInfo.sha,
+      branch: fileInfo.branch || 'main'
+    };
+
+    const putResp = await fetch(apiUrl, {
+      method: 'PUT',
+      headers: { Authorization: `token ${token}`, Accept: 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    if (putResp.ok) {
+      alert('✅ 已保存到云端！GitHub Pages 正在自动部署，约1-2分钟后刷新网页即可看到更新。');
+    } else {
+      const errData = await putResp.json();
+      throw new Error(errData.message || '未知错误');
+    }
+  } catch(e) {
+    alert('保存失败: ' + e.message + '\n\n请检查 Token 是否有仓库写入权限。');
+  }
+}
+
+function exportQuestionsJSON() {
+  const sorted = [...questions].sort((a, b) => a.id - b.id);
+  const json = JSON.stringify(sorted, null, 2);
+  downloadFile('questions_updated.json', json, 'application/json');
+  alert(`已导出 ${sorted.length} 题。将此文件重命名为 questions.json 并替换服务器上的文件即可更新所有人的题库。`);
+}
+
+function escapeHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+// ==================== INIT ====================
+async function init() {
+  await openDB();
+  await loadQuestions();
+  updateStats();
+  updateEbbBadge();
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+}
+
+init();
+</script>
+</body>
+</html>
