@@ -1,11 +1,9 @@
 const CACHE = 'exammaster-v4';
-// Use relative paths so SW works at any deploy location
 const ASSETS = ['./', './index.html', './manifest.json', './questions.json'];
 
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE).then(c => c.addAll(ASSETS).catch(err => {
-      // If some assets fail, still activate with what we have
       console.warn('SW install: some assets failed to cache', err);
     }))
   );
@@ -19,10 +17,15 @@ self.addEventListener('activate', e => {
     )
   );
   self.clients.claim();
+  // Notify all open pages to refresh so old cache doesn't stick
+  e.waitUntil(
+    self.clients.matchAll({ type: 'window' }).then(clients => {
+      clients.forEach(client => client.postMessage({ type: 'SW_UPDATED' }));
+    })
+  );
 });
 
 self.addEventListener('fetch', e => {
-  // Only handle same-origin navigation and asset requests
   const url = new URL(e.request.url);
   if (url.origin !== self.location.origin) return;
 
@@ -54,7 +57,7 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // Cache-first for static assets (JS, CSS, etc.)
+  // Cache-first for static assets
   e.respondWith(
     caches.match(e.request).then(cached =>
       cached || fetch(e.request).then(res => {
