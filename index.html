@@ -8,6 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="刷题神器">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231E40AF'/><text x='50' y='65' text-anchor='middle' font-size='50' fill='white'>📚</text></svg>">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <title>刷题神器</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -267,8 +268,8 @@ textarea{min-height:60px;resize:vertical}
     </div>
     <div class="card mt12">
       <h3 style="margin-bottom:8px">📦 数据管理</h3>
-      <button class="btn btn-outline mb8" onclick="document.getElementById('csv-file').click()">📥 导入 CSV 题库</button>
-      <input type="file" id="csv-file" accept=".csv" class="hidden" onchange="importCSV(this)">
+      <button class="btn btn-outline mb8" onclick="document.getElementById('csv-file').click()">📥 导入 Excel/CSV 题库</button>
+      <input type="file" id="csv-file" accept=".csv,.xlsx,.xls" class="hidden" onchange="importFile(this)">
       <button class="btn btn-outline mb8" onclick="exportCSV()">📤 导出 CSV 题库</button>
       <button class="btn btn-outline mb8" onclick="exportSyncData()">📤 导出学习数据 (JSON)</button>
       <button class="btn btn-outline mb8" onclick="showImportSync()">📥 导入学习数据 (JSON)</button>
@@ -284,6 +285,15 @@ textarea{min-height:60px;resize:vertical}
       <p class="text-sm mb8">管理员可编辑修改题库内容</p>
       <button class="btn btn-dark" onclick="showAdminGate()">进入管理</button>
     </div>
+    <div class="card mt12">
+      <h3 style="margin-bottom:8px">☁️ 云端同步</h3>
+      <p class="text-sm mb8">配置后可在题库管理中一键保存到 GitHub，所有人自动更新</p>
+      <label class="text-sm">GitHub Token</label>
+      <input type="password" id="set-gh-token" class="mb8" placeholder="ghp_xxxxxxxx">
+      <label class="text-sm">仓库名</label>
+      <input type="text" id="set-gh-repo" class="mb12" placeholder="用户名/仓库名 (如 shengzhangf/exam-pwa)">
+      <button class="btn btn-dark" onclick="saveSettings()">保存设置</button>
+    </div>
     <div class="card mt12"><div style="text-align:center"><strong>刷题神器 v5.1 PWA</strong><p class="text-sm">基于艾宾浩斯遗忘曲线的智能刷题工具</p><p class="text-xs mt8">支持 iOS / Android 离线使用</p></div></div>
   </div>
 </div>
@@ -296,7 +306,7 @@ textarea{min-height:60px;resize:vertical}
     <span></span>
   </div>
   <div class="p16">
-    <div class="card"><h3>📥 导入 CSV 题库</h3><p class="text-sm mb8">支持 CSV 格式</p><button class="btn btn-blue" onclick="document.getElementById('csv-file2').click()">选择 CSV 文件</button><input type="file" id="csv-file2" accept=".csv" class="hidden" onchange="importCSV(this)"></div>
+    <div class="card"><h3>📥 导入 Excel/CSV 题库</h3><p class="text-sm mb8">支持 .xlsx .csv 格式，需管理密码</p><button class="btn btn-blue" onclick="document.getElementById('csv-file2').click()">选择 Excel/CSV 文件</button><input type="file" id="csv-file2" accept=".csv,.xlsx,.xls" class="hidden" onchange="importFile(this)"></div>
     <div class="card mt12"><h3>📤 导出 CSV</h3><p class="text-sm mb8">导出全部题库为 CSV</p><button class="btn btn-dark" onclick="exportCSV()">导出 CSV</button></div>
     <div class="card mt12"><h3>🔄 数据同步</h3><p class="text-sm mb8">导出/导入学习数据 (JSON)</p><button class="btn btn-dark mb8" onclick="exportSyncData()">导出学习数据</button><button class="btn btn-outline" onclick="showImportSync()">导入学习数据</button><div id="sync-import-area2" class="hidden mt8"><textarea id="sync-json2" rows="4" placeholder="粘贴 JSON 数据..." class="mb8"></textarea><button class="btn btn-blue" onclick="importSyncData()">确认导入</button></div></div>
   </div>
@@ -370,15 +380,31 @@ let browsePage = 1;
 const PAGE_SIZE = 20;
 
 // ==================== LOAD QUESTIONS ====================
+let questionBankVersion = 0;
+
 async function loadQuestions() {
   const cached = await dbGetAll('questions');
+  try {
+    const resp = await fetch('questions.json');
+    const data = await resp.json();
+    // If JSON has more questions than cache, update cache
+    if (data.length > cached.length) {
+      questions = data;
+      for (const q of questions) { await dbPut('questions', q); }
+      questionBankVersion = data.length;
+      console.log('题库已更新: ' + data.length + ' 题');
+      return;
+    }
+  } catch(e) { console.error('Failed to load questions:', e); }
+
   if (cached.length > 0) { questions = cached; return; }
+  // Fallback: try fetch again if cache is empty
   try {
     const resp = await fetch('questions.json');
     const data = await resp.json();
     questions = data;
     for (const q of questions) { await dbPut('questions', q); }
-  } catch(e) { console.error('Failed to load questions:', e); }
+  } catch(e) {}
 }
 
 function getStemPreview(q) { return q.stem.length > 30 ? q.stem.substring(0, 30) + '...' : q.stem; }
@@ -1255,50 +1281,95 @@ async function loadSettings() {
   const url = await dbGet('settings', 'apiUrl');
   const key = await dbGet('settings', 'apiKey');
   const model = await dbGet('settings', 'aiModel');
+  const ghToken = await dbGet('settings', 'github_token');
+  const ghRepo = await dbGet('settings', 'github_repo');
   if (url) document.getElementById('set-url').value = url.value;
   if (key) document.getElementById('set-key').value = key.value;
   if (model) document.getElementById('set-model').value = model.value;
+  if (ghToken) document.getElementById('set-gh-token').value = ghToken.value;
+  if (ghRepo) document.getElementById('set-gh-repo').value = ghRepo.value;
 }
 
 async function saveSettings() {
   await dbPut('settings', { key: 'apiUrl', value: document.getElementById('set-url').value });
   await dbPut('settings', { key: 'apiKey', value: document.getElementById('set-key').value });
   await dbPut('settings', { key: 'aiModel', value: document.getElementById('set-model').value });
+  await dbPut('settings', { key: 'github_token', value: document.getElementById('set-gh-token').value });
+  await dbPut('settings', { key: 'github_repo', value: document.getElementById('set-gh-repo').value });
   alert('设置已保存');
 }
 
 // ==================== IMPORT/EXPORT ====================
-async function importCSV(input) {
+async function importFile(input) {
   const file = input.files[0];
   if (!file) return;
-  const text = await file.text();
-  const lines = text.split('\n');
-  if (lines.length < 2) { alert('CSV格式错误'); return; }
 
-  const headers = lines[0].replace(/^﻿/, '').split(',');
-  let imported = 0, skipped = 0;
+  // 密码验证
+  const savedPwd = await dbGet('settings', 'admin_password');
+  const correctPwd = savedPwd ? savedPwd.value : ADMIN_DEFAULT_PASSWORD;
+  const inputPwd = prompt('请输入管理密码以导入题库：');
+  if (inputPwd !== correctPwd) { alert('密码错误！'); input.value = ''; return; }
 
-  for (let i = 1; i < lines.length; i++) {
-    if (!lines[i].trim()) continue;
-    const vals = parseCSVLine(lines[i]);
-    if (vals.length < 7) continue;
-    const id = parseInt(vals[0]);
-    if (!id || isNaN(id)) continue;
+  const ext = file.name.split('.').pop().toLowerCase();
+  let rows = [];
 
+  if (ext === 'xlsx' || ext === 'xls') {
+    // 用 SheetJS 解析 Excel
+    try {
+      const data = await file.arrayBuffer();
+      const wb = XLSX.read(data, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+      if (rows.length < 2) { alert('Excel格式错误：无数据行'); input.value = ''; return; }
+      // 移除表头
+      rows.shift();
+    } catch(e) { alert('Excel解析失败: ' + e.message); input.value = ''; return; }
+  } else {
+    // CSV
+    const text = await file.text();
+    const lines = text.split('\n');
+    if (lines.length < 2) { alert('CSV格式错误'); input.value = ''; return; }
+    // 跳过BOM表头
+    for (let i = 1; i < lines.length; i++) {
+      if (!lines[i].trim()) continue;
+      const vals = parseCSVLine(lines[i]);
+      if (vals.length >= 3) rows.push(vals);
+    }
+  }
+
+  let inserted = 0, skipped = 0;
+
+  // 用最大的题号作为新题起点
+  let maxId = questions.reduce((m, q) => Math.max(m, q.id), 0);
+
+  for (const row of rows) {
+    const vals = Array.isArray(row) ? row : Object.values(row);
+    if (vals.length < 3) { skipped++; continue; }
+
+    const idStr = String(vals[0]).trim();
+    const origId = parseInt(idStr);
+    if (!origId || isNaN(origId)) { skipped++; continue; }
+
+    const stem = String(vals[1]||'').trim();
+    if (!stem) { skipped++; continue; }
+
+    // 无论原 ID 是什么，都用新 ID 追加，不覆盖
+    maxId++;
     const q = {
-      id, stem: vals[1]||'', A: vals[2]||'', B: vals[3]||'', C: vals[4]||'',
-      D: vals[5]||'', E: vals[6]||'', answer: (vals[7]||'').trim(),
-      difficulty: vals[8]||'无', qtype: vals[9]||'单选题', category: vals[10]||''
+      id: maxId, stem,
+      A: String(vals[2]||'').trim(), B: String(vals[3]||'').trim(),
+      C: String(vals[4]||'').trim(), D: String(vals[5]||'').trim(), E: String(vals[6]||'').trim(),
+      answer: String(vals[7]||'').trim(), difficulty: String(vals[8]||'无').trim() || '无',
+      qtype: String(vals[9]||'单选题').trim() || '单选题', category: String(vals[10]||'').trim()
     };
 
-    const existing = questions.find(qq => qq.id === q.id);
-    if (existing) { skipped++; continue; }
-
-    await dbPut('questions', q);
     questions.push(q);
-    imported++;
+    await dbPut('questions', q);
+    inserted++;
   }
-  alert(`导入完成！新增 ${imported} 题，跳过(重复) ${skipped} 题`);
+
+  questions.sort((a, b) => a.id - b.id);
+  alert(`导入完成！\n✅ 新增 ${inserted} 题\n⏭️ 跳过 ${skipped} 行\n\n新题目编号从 ${maxId - inserted + 1} 开始`);
   input.value = '';
   updateStats();
 }
@@ -1425,7 +1496,37 @@ function renderAdmin() {
 let adminSearchTerm = '';
 let adminFilterCat = '';
 let adminPage = 1;
+let selectedIds = new Set();
 const ADMIN_PAGE_SIZE = 15;
+
+function toggleSelectAll(pageQIds, select) {
+  if (select) {
+    pageQIds.forEach(id => selectedIds.add(id));
+  } else {
+    pageQIds.forEach(id => selectedIds.delete(id));
+  }
+  renderAdminList();
+}
+
+function toggleSelectId(id) {
+  if (selectedIds.has(id)) selectedIds.delete(id);
+  else selectedIds.add(id);
+  renderAdminList();
+}
+
+async function batchDeleteSelected() {
+  if (selectedIds.size === 0) return;
+  if (!confirm(`确认删除选中的 ${selectedIds.size} 道题目？此操作不可恢复。`)) return;
+  for (const id of selectedIds) {
+    questions = questions.filter(q => q.id !== id);
+    await dbDelete('questions', id);
+  }
+  const count = selectedIds.size;
+  selectedIds.clear();
+  renderAdminList();
+  updateStats();
+  alert(`已删除 ${count} 题`);
+}
 
 function renderAdminList() {
   const search = adminSearchTerm.toLowerCase();
@@ -1438,12 +1539,15 @@ function renderAdminList() {
   if (adminPage > totalPages) adminPage = totalPages || 1;
   const start = (adminPage - 1) * ADMIN_PAGE_SIZE;
   const page = filtered.slice(start, start + ADMIN_PAGE_SIZE);
+  const pageQIds = page.map(q => q.id);
+  const allPageSelected = pageQIds.length > 0 && pageQIds.every(id => selectedIds.has(id));
 
   let html = `<div class="flex-between mb12">
     <span style="font-weight:700">题库管理</span>
     <div class="flex-row">
       <button class="btn btn-outline" style="width:auto;padding:6px 12px;font-size:13px" onclick="showChangePassword()">改密</button>
       <button class="btn btn-blue" style="width:auto;padding:6px 12px;font-size:13px" onclick="openAddDialog()">+ 新增题目</button>
+      <button class="btn btn-green" style="width:auto;padding:6px 12px;font-size:13px" onclick="syncToGitHub()">☁️ 保存到云端</button>
       <button class="btn btn-outline" style="width:auto;padding:6px 12px;font-size:13px" onclick="exportQuestionsJSON()">📤 导出JSON</button>
       <button class="btn btn-outline" style="width:auto;padding:6px 12px;font-size:13px;color:#DC2626;border-color:#DC2626" onclick="adminAuthed=false;navTo('settings')">退出</button>
     </div></div>`;
@@ -1454,14 +1558,23 @@ function renderAdminList() {
       <option value="">全部类别</option>${cats.map(c => `<option value="${c}" ${adminFilterCat===c?'selected':''}>${c}</option>`).join('')}
     </select></div>`;
 
-  html += `<p class="text-sm mb8">共 ${filtered.length} 题（总数 ${questions.length}）</p>`;
+  html += `<div class="flex-between mb8">
+    <span class="text-sm">共 ${filtered.length} 题（总数 ${questions.length}）${selectedIds.size>0?` | 已选 ${selectedIds.size} 题`:''}</span>
+    <span class="text-sm" style="cursor:pointer;color:#4F46E5" onclick="toggleSelectAll([${pageQIds}], ${!allPageSelected})">${allPageSelected?'取消全选':'全选本页'}</span>
+  </div>`;
+
+  if (selectedIds.size > 0) {
+    html += '<div class="mb8"><button class="btn btn-red" style="width:auto;padding:8px 16px" onclick="batchDeleteSelected()">🗑️ 删除选中的 ' + selectedIds.size + ' 题</button></div>';
+  }
 
   page.forEach(q => {
     const opts = getOptions(q);
     const optPreview = opts.map(([l, t]) => `${l}: ${t.length>15?t.substring(0,15)+'...':t}`).join(' | ') || '无选项';
-    html += `<div class="card" style="cursor:pointer;margin:4px 0">
-      <div class="flex-between">
-        <div style="flex:1" onclick="openEditDialog(${q.id})">
+    const checked = selectedIds.has(q.id);
+    html += `<div class="card" style="margin:4px 0">
+      <div class="flex-row" style="align-items:flex-start">
+        <input type="checkbox" style="width:18px;height:18px;margin-top:2px;flex-shrink:0;accent-color:#1E40AF" ${checked?'checked':''} onclick="event.stopPropagation();toggleSelectId(${q.id})">
+        <div style="flex:1;cursor:pointer" onclick="openEditDialog(${q.id})">
           <div class="flex-row"><span style="font-weight:600;color:#4F46E5">#${q.id}</span>
           <span class="tag tag-blue">${q.qtype||'单选题'}</span>
           ${q.difficulty&&q.difficulty!=='无'?`<span class="tag tag-orange">${q.difficulty}</span>`:''}
@@ -1470,7 +1583,7 @@ function renderAdminList() {
           <p class="text-sm mt4">${getStemPreview(q)}</p>
           <p class="text-xs mt2" style="color:#9CA3AF">${optPreview}</p>
         </div>
-        <button class="btn btn-outline" style="width:auto;padding:6px 12px;font-size:12px;color:#DC2626;border-color:#DC2626;flex-shrink:0" onclick="event.stopPropagation();deleteQuestion(${q.id})">删除</button>
+        <button class="btn btn-outline" style="width:auto;padding:4px 10px;font-size:11px;color:#DC2626;border-color:#DC2626;flex-shrink:0" onclick="event.stopPropagation();deleteQuestion(${q.id})">删除</button>
       </div></div>`;
   });
 
@@ -1480,7 +1593,7 @@ function renderAdminList() {
     <button class="btn btn-outline" style="width:auto" onclick="adminPage=Math.min(totalPages,adminPage+1);renderAdminList()" ${adminPage>=totalPages?'disabled':''}>下一页 →</button></div>`;
 
   document.getElementById('admin-content').innerHTML = html;
-}
+}`
 
 function openEditDialog(qid) {
   const q = questions.find(q => q.id === qid);
@@ -1582,6 +1695,59 @@ async function deleteQuestion(qid) {
   await dbDelete('questions', qid);
   renderAdminList();
   updateStats();
+}
+
+async function syncToGitHub() {
+  const tokenObj = await dbGet('settings', 'github_token');
+  const repoObj = await dbGet('settings', 'github_repo');
+  const token = tokenObj ? tokenObj.value : '';
+  const repo = repoObj ? repoObj.value : '';
+
+  if (!token || !repo) {
+    alert('请先在设置页面配置 GitHub Token 和仓库名\n\n获取 Token: GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens\n权限: Contents (Read and write)\n仓库: 选择 exam-pwa');
+    return;
+  }
+
+  if (!confirm(`将当前题库 (${questions.length} 题) 保存到 ${repo}？\n保存后约1-2分钟所有用户可看到更新。`)) return;
+
+  try {
+    const sorted = [...questions].sort((a, b) => a.id - b.id);
+    const jsonStr = JSON.stringify(sorted, null, 2);
+    // Base64 encode for GitHub API
+    const content = btoa(unescape(encodeURIComponent(jsonStr)));
+
+    const apiUrl = `https://api.github.com/repos/${repo}/contents/questions.json`;
+
+    // Get current file SHA
+    const getResp = await fetch(apiUrl, {
+      headers: { Authorization: `token ${token}`, Accept: 'application/vnd.github.v3+json' }
+    });
+    const fileInfo = await getResp.json();
+    if (!getResp.ok) throw new Error(fileInfo.message || '获取文件信息失败');
+
+    // Commit update
+    const body = {
+      message: 'Update question bank (' + sorted.length + ' questions)',
+      content: content,
+      sha: fileInfo.sha,
+      branch: fileInfo.branch || 'main'
+    };
+
+    const putResp = await fetch(apiUrl, {
+      method: 'PUT',
+      headers: { Authorization: `token ${token}`, Accept: 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    if (putResp.ok) {
+      alert('✅ 已保存到云端！GitHub Pages 正在自动部署，约1-2分钟后刷新网页即可看到更新。');
+    } else {
+      const errData = await putResp.json();
+      throw new Error(errData.message || '未知错误');
+    }
+  } catch(e) {
+    alert('保存失败: ' + e.message + '\n\n请检查 Token 是否有仓库写入权限。');
+  }
 }
 
 function exportQuestionsJSON() {
