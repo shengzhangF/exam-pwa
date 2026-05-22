@@ -20,7 +20,8 @@ def convert_csv(csv_path, json_path):
                 'answer': row.get('答案', '').strip(),
                 'difficulty': row.get('难度', '无').strip() or '无',
                 'qtype': row.get('题型', '单选题').strip() or '单选题',
-                'category': row.get('类别', '').strip()
+                'category': row.get('类别', '').strip(),
+                'note': row.get('备注', '').strip()
             }
             questions.append(q)
     with open(json_path, 'w', encoding='utf-8') as f:
@@ -60,7 +61,8 @@ def convert_xlsx(xlsx_path, json_path):
             'answer': vals.get('答案', ''),
             'difficulty': vals.get('难度', '无') or '无',
             'qtype': vals.get('题型', '单选题') or '单选题',
-            'category': vals.get('类别', '')
+            'category': vals.get('类别', ''),
+            'note': vals.get('备注', '')
         }
         questions.append(q)
 
