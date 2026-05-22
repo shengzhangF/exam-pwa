@@ -101,6 +101,11 @@ input,select,textarea{width:100%;padding:12px;border:1.5px solid #D1D5DB;border-
 input:focus,select:focus{outline:none;border-color:#4F46E5}
 .modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px}
 .modal-box{background:#fff;border-radius:16px;padding:24px;width:100%;max-width:400px;max-height:80vh;overflow-y:auto}
+.modal-wide{max-width:560px}
+.admin-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.admin-row label{font-size:13px;font-weight:600;min-width:50px}
+.admin-row input,.admin-row select,.admin-row textarea{flex:1;min-width:120px;padding:8px;font-size:14px}
+textarea{min-height:60px;resize:vertical}
 </style>
 </head>
 <body>
@@ -274,7 +279,12 @@ input:focus,select:focus{outline:none;border-color:#4F46E5}
       <button class="btn btn-outline mb8" style="color:#DC2626;border-color:#DC2626" onclick="if(confirm('确定清除所有答题历史？'))clearHistory()">🗑️ 清除答题历史</button>
       <button class="btn btn-outline" style="color:#DC2626;border-color:#DC2626" onclick="if(confirm('确定清除所有用户数据？此操作不可恢复！'))resetAll()">⚠️ 清除所有数据</button>
     </div>
-    <div class="card mt12"><div style="text-align:center"><strong>刷题神器 v5.0 PWA</strong><p class="text-sm">基于艾宾浩斯遗忘曲线的智能刷题工具</p><p class="text-xs mt8">支持 iOS / Android 离线使用</p></div></div>
+    <div class="card mt12">
+      <h3 style="margin-bottom:8px">🔑 题库管理</h3>
+      <p class="text-sm mb8">管理员可编辑修改题库内容</p>
+      <button class="btn btn-dark" onclick="showAdminGate()">进入管理</button>
+    </div>
+    <div class="card mt12"><div style="text-align:center"><strong>刷题神器 v5.1 PWA</strong><p class="text-sm">基于艾宾浩斯遗忘曲线的智能刷题工具</p><p class="text-xs mt8">支持 iOS / Android 离线使用</p></div></div>
   </div>
 </div>
 
@@ -290,6 +300,16 @@ input:focus,select:focus{outline:none;border-color:#4F46E5}
     <div class="card mt12"><h3>📤 导出 CSV</h3><p class="text-sm mb8">导出全部题库为 CSV</p><button class="btn btn-dark" onclick="exportCSV()">导出 CSV</button></div>
     <div class="card mt12"><h3>🔄 数据同步</h3><p class="text-sm mb8">导出/导入学习数据 (JSON)</p><button class="btn btn-dark mb8" onclick="exportSyncData()">导出学习数据</button><button class="btn btn-outline" onclick="showImportSync()">导入学习数据</button><div id="sync-import-area2" class="hidden mt8"><textarea id="sync-json2" rows="4" placeholder="粘贴 JSON 数据..." class="mb8"></textarea><button class="btn btn-blue" onclick="importSyncData()">确认导入</button></div></div>
   </div>
+</div>
+
+<!-- ========== ADMIN PAGE ========== -->
+<div class="page" id="page-admin">
+  <div class="header" style="position:sticky;top:0">
+    <span style="font-size:20px;cursor:pointer" onclick="navTo('settings')">← 返回</span>
+    <span style="font-weight:600">题库管理</span>
+    <span></span>
+  </div>
+  <div id="admin-content" class="p16"></div>
 </div>
 
 <!-- Bottom Nav -->
@@ -1350,6 +1370,231 @@ function downloadFile(filename, content, mimeType) {
   const a = document.createElement('a');
   a.href = url; a.download = filename; a.click();
   URL.revokeObjectURL(url);
+}
+
+// ==================== ADMIN ====================
+const ADMIN_DEFAULT_PASSWORD = 'admin123';
+let adminAuthed = false;
+
+async function showAdminGate() {
+  const savedPwd = await dbGet('settings', 'admin_password');
+  const pwd = savedPwd ? savedPwd.value : ADMIN_DEFAULT_PASSWORD;
+
+  document.getElementById('admin-content').innerHTML = `
+    <div class="card" style="text-align:center">
+      <p style="font-size:48px">🔑</p>
+      <h3>题库管理登录</h3>
+      <p class="text-sm mt8 mb12">请输入管理密码</p>
+      <input type="password" id="admin-pwd-input" class="mb8" placeholder="默认密码: admin123">
+      <div class="flex-row">
+        <button class="btn btn-dark" style="flex:1" onclick="checkAdminPassword('${pwd}')">确认</button>
+        <button class="btn btn-outline" style="flex:1" onclick="navTo('settings')">取消</button>
+      </div>
+      <p class="text-xs mt8" style="cursor:pointer;color:#4F46E5" onclick="showChangePassword()">修改管理密码</p>
+    </div>`;
+  navTo('admin');
+  document.getElementById('page-admin').classList.add('active');
+  document.querySelectorAll('.page').forEach(p => { if (p.id !== 'page-admin') p.classList.remove('active'); });
+}
+
+function checkAdminPassword(correctPwd) {
+  const input = document.getElementById('admin-pwd-input').value;
+  if (input === correctPwd) {
+    adminAuthed = true;
+    renderAdmin();
+  } else {
+    alert('密码错误！');
+  }
+}
+
+async function showChangePassword() {
+  const newPwd = prompt('请输入新管理密码（6位以上）:');
+  if (!newPwd || newPwd.length < 6) { alert('密码至少6位'); return; }
+  await dbPut('settings', { key: 'admin_password', value: newPwd });
+  alert('管理密码已修改！');
+}
+
+function renderAdmin() {
+  if (!adminAuthed) { showAdminGate(); return; }
+  navTo('admin');
+  document.getElementById('page-admin').classList.add('active');
+  document.querySelectorAll('.page').forEach(p => { if (p.id !== 'page-admin') p.classList.remove('active'); });
+  renderAdminList();
+}
+
+let adminSearchTerm = '';
+let adminFilterCat = '';
+let adminPage = 1;
+const ADMIN_PAGE_SIZE = 15;
+
+function renderAdminList() {
+  const search = adminSearchTerm.toLowerCase();
+  let filtered = questions;
+  if (search) filtered = filtered.filter(q => (q.stem||'').toLowerCase().includes(search) || String(q.id).includes(search) || (q.category||'').includes(search));
+  if (adminFilterCat) filtered = filtered.filter(q => q.category === adminFilterCat);
+
+  const cats = [...new Set(questions.map(q => q.category).filter(Boolean))].sort();
+  const totalPages = Math.ceil(filtered.length / ADMIN_PAGE_SIZE);
+  if (adminPage > totalPages) adminPage = totalPages || 1;
+  const start = (adminPage - 1) * ADMIN_PAGE_SIZE;
+  const page = filtered.slice(start, start + ADMIN_PAGE_SIZE);
+
+  let html = `<div class="flex-between mb12">
+    <span style="font-weight:700">题库管理</span>
+    <div class="flex-row">
+      <button class="btn btn-outline" style="width:auto;padding:6px 12px;font-size:13px" onclick="showChangePassword()">改密</button>
+      <button class="btn btn-blue" style="width:auto;padding:6px 12px;font-size:13px" onclick="openAddDialog()">+ 新增题目</button>
+      <button class="btn btn-outline" style="width:auto;padding:6px 12px;font-size:13px" onclick="exportQuestionsJSON()">📤 导出JSON</button>
+      <button class="btn btn-outline" style="width:auto;padding:6px 12px;font-size:13px;color:#DC2626;border-color:#DC2626" onclick="adminAuthed=false;navTo('settings')">退出</button>
+    </div></div>`;
+
+  html += `<div class="flex-row mb8">
+    <input type="text" id="admin-search" placeholder="🔍 搜索题号/内容..." style="flex:2" value="${escapeHtml(adminSearchTerm)}" oninput="adminSearchTerm=this.value;adminPage=1;renderAdminList()">
+    <select style="flex:1" onchange="adminFilterCat=this.value;adminPage=1;renderAdminList()">
+      <option value="">全部类别</option>${cats.map(c => `<option value="${c}" ${adminFilterCat===c?'selected':''}>${c}</option>`).join('')}
+    </select></div>`;
+
+  html += `<p class="text-sm mb8">共 ${filtered.length} 题（总数 ${questions.length}）</p>`;
+
+  page.forEach(q => {
+    const opts = getOptions(q);
+    const optPreview = opts.map(([l, t]) => `${l}: ${t.length>15?t.substring(0,15)+'...':t}`).join(' | ') || '无选项';
+    html += `<div class="card" style="cursor:pointer;margin:4px 0">
+      <div class="flex-between">
+        <div style="flex:1" onclick="openEditDialog(${q.id})">
+          <div class="flex-row"><span style="font-weight:600;color:#4F46E5">#${q.id}</span>
+          <span class="tag tag-blue">${q.qtype||'单选题'}</span>
+          ${q.difficulty&&q.difficulty!=='无'?`<span class="tag tag-orange">${q.difficulty}</span>`:''}
+          ${q.category?`<span class="tag tag-green">${q.category}</span>`:''}
+          <span style="font-size:12px;color:#9CA3AF">答案: ${q.answer}</span></div>
+          <p class="text-sm mt4">${getStemPreview(q)}</p>
+          <p class="text-xs mt2" style="color:#9CA3AF">${optPreview}</p>
+        </div>
+        <button class="btn btn-outline" style="width:auto;padding:6px 12px;font-size:12px;color:#DC2626;border-color:#DC2626;flex-shrink:0" onclick="event.stopPropagation();deleteQuestion(${q.id})">删除</button>
+      </div></div>`;
+  });
+
+  html += `<div class="flex-row mt12" style="justify-content:center;gap:12px">
+    <button class="btn btn-outline" style="width:auto" onclick="adminPage=Math.max(1,adminPage-1);renderAdminList()" ${adminPage===1?'disabled':''}>← 上一页</button>
+    <span class="text-sm">${adminPage} / ${totalPages||1}</span>
+    <button class="btn btn-outline" style="width:auto" onclick="adminPage=Math.min(totalPages,adminPage+1);renderAdminList()" ${adminPage>=totalPages?'disabled':''}>下一页 →</button></div>`;
+
+  document.getElementById('admin-content').innerHTML = html;
+}
+
+function openEditDialog(qid) {
+  const q = questions.find(q => q.id === qid);
+  if (!q) return;
+  showQuestionEditor(q, 'edit');
+}
+
+function openAddDialog() {
+  const maxId = questions.reduce((m, q) => Math.max(m, q.id), 0);
+  const newQ = { id: maxId + 1, stem: '', A: '', B: '', C: '', D: '', E: '', answer: '', difficulty: '无', qtype: '单选题', category: '' };
+  showQuestionEditor(newQ, 'add');
+}
+
+function showQuestionEditor(q, mode) {
+  const title = mode === 'add' ? '新增题目' : `编辑题目 #${q.id}`;
+  const saveBtn = mode === 'add' ? '新增' : '保存';
+
+  const html = `<div class="modal-overlay" onclick="if(event.target===this)this.remove()">
+    <div class="modal-box modal-wide">
+      <h3 style="margin-bottom:12px">${title}</h3>
+      <div class="admin-row mb8"><label>题号</label><input type="number" id="edit-id" value="${q.id}" oninput="this.value=this.value.replace(/[^0-9]/g,'')"></div>
+      <div class="admin-row mb8"><label>题型</label><select id="edit-qtype"><option value="单选题" ${(q.qtype||'单选题')==='单选题'?'selected':''}>单选题</option><option value="多选题" ${q.qtype==='多选题'?'selected':''}>多选题</option><option value="判断题" ${q.qtype==='判断题'?'selected':''}>判断题</option></select></div>
+      <div class="admin-row mb8"><label>题干</label><textarea id="edit-stem">${escapeHtml(q.stem||'')}</textarea></div>
+      <div class="admin-row mb8"><label>A</label><input type="text" id="edit-A" value="${escapeHtml(q.A||'')}"></div>
+      <div class="admin-row mb8"><label>B</label><input type="text" id="edit-B" value="${escapeHtml(q.B||'')}"></div>
+      <div class="admin-row mb8"><label>C</label><input type="text" id="edit-C" value="${escapeHtml(q.C||'')}"></div>
+      <div class="admin-row mb8"><label>D</label><input type="text" id="edit-D" value="${escapeHtml(q.D||'')}"></div>
+      <div class="admin-row mb8"><label>E</label><input type="text" id="edit-E" value="${escapeHtml(q.E||'')}"></div>
+      <div class="admin-row mb8"><label>答案</label><input type="text" id="edit-answer" value="${escapeHtml(q.answer||'')}" placeholder="A / AB / 对 / 错"></div>
+      <div class="admin-row mb8"><label>难度</label><select id="edit-diff"><option value="无" ${(q.difficulty||'无')==='无'?'selected':''}>无</option><option value="简单" ${q.difficulty==='简单'?'selected':''}>简单</option><option value="中等" ${q.difficulty==='中等'?'selected':''}>中等</option><option value="困难" ${q.difficulty==='困难'?'selected':''}>困难</option></select></div>
+      <div class="admin-row mb12"><label>类别</label><input type="text" id="edit-cat" value="${escapeHtml(q.category||'')}" placeholder="如: 政治理论"></div>
+      <div class="flex-row">
+        <button class="btn btn-dark" style="flex:1" onclick="${mode==='add'?'saveNewQuestion()':`saveEditedQuestion(${q.id})`}">${saveBtn}</button>
+        <button class="btn btn-outline" style="flex:1" onclick="event.target.closest('.modal-overlay').remove()">取消</button>
+      </div>
+      ${mode==='edit'?`<button class="btn btn-outline mt8" style="width:100%;color:#DC2626;border-color:#DC2626" onclick="if(confirm('确认删除题目 #${q.id}？')){deleteQuestion(${q.id});event.target.closest('.modal-overlay').remove()}">删除此题</button>`:''}
+    </div></div>`;
+
+  const overlay = document.createElement('div');
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay.firstElementChild);
+}
+
+async function saveEditedQuestion(oldId) {
+  const data = readEditorForm();
+  if (!data) return;
+
+  // Remove old, add updated
+  const idx = questions.findIndex(q => q.id === oldId);
+  if (idx >= 0) questions.splice(idx, 1);
+  questions.push(data);
+  questions.sort((a, b) => a.id - b.id);
+
+  if (data.id !== oldId) await dbDelete('questions', oldId);
+  await dbPut('questions', data);
+
+  document.querySelector('.modal-overlay').remove();
+  renderAdminList();
+  updateStats();
+}
+
+async function saveNewQuestion() {
+  const data = readEditorForm();
+  if (!data) return;
+
+  if (questions.some(q => q.id === data.id)) { alert('题号已存在！'); return; }
+  questions.push(data);
+  questions.sort((a, b) => a.id - b.id);
+  await dbPut('questions', data);
+
+  document.querySelector('.modal-overlay').remove();
+  renderAdminList();
+  updateStats();
+}
+
+function readEditorForm() {
+  const id = parseInt(document.getElementById('edit-id').value);
+  const stem = document.getElementById('edit-stem').value.trim();
+  if (!id || isNaN(id)) { alert('请输入有效题号'); return null; }
+  if (!stem) { alert('请输入题干'); return null; }
+  return {
+    id,
+    stem,
+    A: document.getElementById('edit-A').value.trim(),
+    B: document.getElementById('edit-B').value.trim(),
+    C: document.getElementById('edit-C').value.trim(),
+    D: document.getElementById('edit-D').value.trim(),
+    E: document.getElementById('edit-E').value.trim(),
+    answer: document.getElementById('edit-answer').value.trim(),
+    difficulty: document.getElementById('edit-diff').value,
+    qtype: document.getElementById('edit-qtype').value,
+    category: document.getElementById('edit-cat').value.trim(),
+  };
+}
+
+async function deleteQuestion(qid) {
+  if (!confirm(`确认删除题目 #${qid}？此操作不可恢复。`)) return;
+  questions = questions.filter(q => q.id !== qid);
+  await dbDelete('questions', qid);
+  renderAdminList();
+  updateStats();
+}
+
+function exportQuestionsJSON() {
+  const sorted = [...questions].sort((a, b) => a.id - b.id);
+  const json = JSON.stringify(sorted, null, 2);
+  downloadFile('questions_updated.json', json, 'application/json');
+  alert(`已导出 ${sorted.length} 题。将此文件重命名为 questions.json 并替换服务器上的文件即可更新所有人的题库。`);
+}
+
+function escapeHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
 }
 
 // ==================== INIT ====================
