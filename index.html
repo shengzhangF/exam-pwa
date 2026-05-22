@@ -534,7 +534,8 @@ function renderQuestion() {
 
   let html = `<div class="q-card">
     <span class="q-type" style="background:${q.qtype==='多选题'?'#FFF3E0':q.qtype==='判断题'?'#E3F2FD':'#E8F5E9'};color:${q.qtype==='多选题'?'#E65100':q.qtype==='判断题'?'#1565C0':'#2E7D32'}">${q.qtype||'单选题'}</span>
-    <span class="text-sm" style="margin-left:8px">题目 ${q.id}</span>`;
+    <span class="text-sm" style="margin-left:8px">题目 ${q.id}</span>
+    <span style="margin-left:auto;cursor:pointer;font-size:20px" onclick="event.stopPropagation();toggleFav(${q.id})">${favSet.has(q.id)?'❤️':'🤍'}</span>`;
 
   if (currentMode === 'sequential' || currentMode === 'wrong' || currentMode === 'browse') {
     html += `<span class="text-sm" style="float:right">${currentQIndex+1}/${currentQuestionList.length}</span>`;
@@ -647,6 +648,7 @@ async function submitAnswer() {
 
   showResult = true;
   renderQuestion();
+  loadFavSet();
   updateStats();
   updateEbbBadge();
 }
@@ -1154,6 +1156,27 @@ function browseQuestion(qid) {
 }
 
 // ==================== FAVORITES ====================
+async function loadFavSet() {
+  const favs = await dbGetAll('favorites');
+  favSet = new Set(favs.map(f => f.questionId));
+}
+
+async function toggleFav(qid) {
+  if (favSet.has(qid)) {
+    await dbDelete('favorites', qid);
+    favSet.delete(qid);
+  } else {
+    const tag = prompt('输入标签（可选，直接确定跳过）:') || '';
+    await dbPut('favorites', { questionId: qid, tag });
+    favSet.add(qid);
+  }
+  if (currentMode === 'ebbinghaus') {
+    renderEbbinghausQuestion();
+  } else {
+    renderQuestion();
+  }
+}
+
 async function renderFavorites() {
   const favs = await dbGetAll('favorites');
   if (favs.length === 0) {
@@ -1612,6 +1635,7 @@ let adminSearchTerm = '';
 let adminFilterType = '';
 let adminPage = 1;
 let selectedIds = new Set();
+let favSet = new Set();  // cached favorited question IDs
 const ADMIN_PAGE_SIZE = 15;
 
 function toggleSelectAll(pageQIds, select) {
