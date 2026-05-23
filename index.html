@@ -115,7 +115,7 @@ textarea{min-height:60px;resize:vertical}
 <!-- Header -->
 <div class="header">
   <div><h1>刷题神器</h1><p>智能刷题 · 科学记忆</p></div>
-  <span style="font-size:28px;cursor:pointer" onclick="navTo('settings')">⚙️</span>
+  <span style="font-size:13px;cursor:pointer;color:#6B7280;display:flex;flex-direction:column;align-items:center;gap:2px" onclick="navTo('settings')"><span style="font-size:24px">⚙️</span>设置</span>
 </div>
 
 <!-- ========== HOME PAGE ========== -->
@@ -195,18 +195,18 @@ textarea{min-height:60px;resize:vertical}
 <div class="page" id="page-browse">
   <div class="header" style="position:sticky;top:0">
     <span style="font-size:20px;cursor:pointer" onclick="navTo('home')">← 返回</span>
-    <span style="font-weight:600">题库浏览</span>
-    <span></span>
+    <span style="font-weight:600">题库背诵</span>
+    <span style="font-size:13px;color:#4F46E5;cursor:pointer" onclick="startTestFromBrowseList()">📝 去测试</span>
   </div>
-  <div class="p16"><input type="text" id="browse-search" placeholder="🔍 搜索题目..." oninput="renderBrowse()"></div>
-      <div class="p16 flex-row" style="flex-wrap:wrap">
-        <select id="browse-type" onchange="renderBrowse()" style="width:auto;flex:1">
-          <option value="">全部题型</option>
-          <option value="单选题">单选题</option>
-          <option value="多选题">多选题</option>
-          <option value="判断题">判断题</option>
-        </select>
-      </div>
+  <div id="browse-filters">
+    <div class="p16" style="padding-bottom:4px"><input type="text" id="browse-search" placeholder="🔍 搜索题目..." oninput="browsePage=1;renderBrowse()"></div>
+    <div class="chips p16" style="padding-top:0">
+      <button class="chip active" id="browse-chip-all" onclick="filterBrowseType(this,'')">全部</button>
+      <button class="chip" id="browse-chip-single" onclick="filterBrowseType(this,'单选题')">单选题</button>
+      <button class="chip" id="browse-chip-multi" onclick="filterBrowseType(this,'多选题')">多选题</button>
+      <button class="chip" id="browse-chip-tf" onclick="filterBrowseType(this,'判断题')">判断题</button>
+    </div>
+  </div>
   <div id="browse-list" class="p16"></div>
   <div class="p16 flex-row" id="browse-pager" style="justify-content:center"></div>
 </div>
@@ -725,7 +725,8 @@ function renderTimedQuestion() {
   html += `<div class="chips p16" style="overflow-x:auto;flex-wrap:nowrap">`;
   currentQuestionList.forEach((q, i) => {
     const answered = examAnswers[q.id] && examAnswers[q.id].size > 0;
-    html += `<button class="chip${i===currentQIndex?' active':''}" style="${answered?'background:#DBEAFE;color:#1E40AF':''}" onclick="jumpToQuestion(${i})">${i+1}</button>`;
+    const style = answered ? 'background:#DBEAFE;color:#1E40AF' : 'background:#FFF5F5;color:#DC2626;border:1.5px dashed #FCA5A5';
+    html += `<button class="chip${i===currentQIndex?' active':''}" style="${style}" onclick="jumpToQuestion(${i})">${i+1}</button>`;
   });
   html += `</div>`;
 
@@ -870,7 +871,8 @@ function renderMockExamQuestion() {
   html += `<div class="chips p16" style="overflow-x:auto;flex-wrap:nowrap">`;
   currentQuestionList.forEach((q, i) => {
     const answered = examAnswers[q.id] && examAnswers[q.id].size > 0;
-    html += `<button class="chip${i===currentQIndex?' active':''}" style="${answered?'background:#DBEAFE;color:#1E40AF':''}" onclick="jumpToMockQ(${i})">${i+1}</button>`;
+    const style = answered ? 'background:#DBEAFE;color:#1E40AF' : 'background:#FFF5F5;color:#DC2626;border:1.5px dashed #FCA5A5';
+    html += `<button class="chip${i===currentQIndex?' active':''}" style="${style}" onclick="jumpToMockQ(${i})">${i+1}</button>`;
   });
   html += `</div>`;
 
@@ -1133,58 +1135,133 @@ function nextEbbinghausQuestion() {
 }
 
 // ==================== BROWSE ====================
-	function initBrowseFilters() {}
+let browseFilterType = '';
+
+function initBrowseFilters() {}
+
+function filterBrowseType(btn, type) {
+  browseFilterType = type;
+  browsePage = 1;
+  document.querySelectorAll('#browse-filters .chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  renderBrowse();
+}
 
 function renderBrowse() {
   const search = (document.getElementById('browse-search')?.value || '').toLowerCase();
-  const qtype = document.getElementById('browse-type')?.value || '';
 
   let filtered = questions;
   if (search) filtered = filtered.filter(q => q.stem.includes(search) || (q.category||'').includes(search));
-  if (qtype) filtered = filtered.filter(q => q.qtype === qtype);
+  if (browseFilterType) filtered = filtered.filter(q => q.qtype === browseFilterType);
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   if (browsePage > totalPages) browsePage = totalPages || 1;
   const start = (browsePage - 1) * PAGE_SIZE;
   const page = filtered.slice(start, start + PAGE_SIZE);
 
-  let html = `<p class="text-sm">共 ${filtered.length} 题</p>`;
+  let html = `<p class="text-sm mb12">共 ${filtered.length} 题 · 答案已直接显示，点击右上角 <span style="color:#4F46E5;font-weight:600">📝去测试</span> 进入答题</p>`;
+
   page.forEach(q => {
-    html += `<div class="card" style="cursor:pointer" onclick="browseQuestion(${q.id})">
-      <div class="flex-row"><span style="font-weight:600;color:#4F46E5">题目 ${q.id}</span>`;
-    if (q.qtype) html += `<span class="tag tag-blue">${q.qtype}</span>`;
-    if (q.difficulty && q.difficulty !== '无') html += `<span class="tag tag-orange">${q.difficulty}</span>`;
-    html += `</div><p class="text-sm mt4">${getStemPreview(q)}</p></div>`;
+    const opts = getOptions(q);
+    const correctAns = q.answer.trim();
+
+    html += `<div class="q-card">
+      <div class="flex-row" style="flex-wrap:wrap;align-items:center">
+        <span class="q-type" style="background:${q.qtype==='多选题'?'#FFF3E0':q.qtype==='判断题'?'#E3F2FD':'#E8F5E9'};color:${q.qtype==='多选题'?'#E65100':q.qtype==='判断题'?'#1565C0':'#2E7D32'}">${q.qtype||'单选题'}</span>
+        <span class="text-sm" style="margin-left:8px;font-weight:600">#${q.id}</span>
+        ${q.difficulty && q.difficulty !== '无' ? `<span class="tag tag-orange">${q.difficulty}</span>` : ''}
+        ${q.category ? `<span class="tag tag-green" style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${q.category}</span>` : ''}
+        <span style="margin-left:auto;cursor:pointer;font-size:18px" onclick="event.stopPropagation();toggleFavBrowseList(${q.id})">${favSet.has(q.id)?'❤️':'🤍'}</span>
+      </div>
+      <div class="q-stem mt8" style="font-size:15px;line-height:1.7">${q.stem}</div>`;
+
+    if (q.qtype === '判断题') {
+      html += `<div class="flex-row mt8" style="gap:8px">`;
+      ['对','错'].forEach(v => {
+        const isRight = correctAns === v;
+        html += `<div style="flex:1;height:38px;border-radius:8px;background:${isRight?'#4CAF50':'#F3F4F6'};color:${isRight?'#fff':'#9CA3AF'};display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600">${v==='对'?'✓ 对':'✗ 错'}${isRight?' ✓':''}</div>`;
+      });
+      html += `</div>`;
+    } else if (opts.length > 0) {
+      opts.forEach(([letter, text]) => {
+        const isRight = correctAns.includes(letter);
+        html += `<div class="opt" style="background:${isRight?'#E8F5E9':'#fff'};border:2px solid ${isRight?'#4CAF50':'#E5E7EB'};margin:4px 0;padding:8px 12px;cursor:default">
+          <div class="opt-letter" style="background:${isRight?'#4CAF50':'#F3F4F6'};color:${isRight?'#fff':'#9CA3AF'};width:26px;height:26px;font-size:12px">${letter}</div>
+          <span class="opt-text" style="font-size:14px">${text}</span>
+          ${isRight?`<span style="color:#4CAF50;font-weight:700;font-size:13px;flex-shrink:0;margin-left:auto">✓ 答案</span>`:''}
+        </div>`;
+      });
+    }
+
+    html += `<div style="margin-top:10px;padding:8px 14px;background:#E8F5E9;border-radius:8px;font-weight:700;color:#2E7D32;font-size:14px">✅ 正确答案：${q.answer}</div>`;
+
+    if (q.note) {
+      html += `<div style="margin-top:6px;padding:8px 12px;background:#FFF8E1;border-left:3px solid #FF9800;border-radius:4px"><span class="text-sm" style="color:#E65100">📝 ${q.note}</span></div>`;
+    }
+
+    html += `</div>`;
   });
 
-  html += `<div class="flex-row mt12" style="justify-content:center;gap:12px">`;
-  html += `<button class="btn btn-outline" style="width:auto" onclick="browsePage=Math.max(1,browsePage-1);renderBrowse()" ${browsePage===1?'disabled':''}>← 上一页</button>`;
-  html += `<span class="text-sm">${browsePage} / ${totalPages||1}</span>`;
-  html += `<button class="btn btn-outline" style="width:auto" onclick="browsePage=Math.min(${totalPages||1},browsePage+1);renderBrowse()" ${browsePage>=totalPages?'disabled':''}>下一页 →</button></div>`;
+  html += `<div class="flex-row mt16" style="justify-content:center;gap:12px">`;
+  html += `<button class="btn btn-outline" style="width:auto" onclick="browsePage=Math.max(1,browsePage-1);renderBrowse();window.scrollTo(0,0)" ${browsePage===1?'disabled':''}>← 上一页</button>`;
+  html += `<span class="text-sm" style="font-weight:600">${browsePage} / ${totalPages||1}</span>`;
+  html += `<button class="btn btn-outline" style="width:auto" onclick="browsePage=Math.min(${totalPages||1},browsePage+1);renderBrowse();window.scrollTo(0,0)" ${browsePage>=totalPages?'disabled':''}>下一页 →</button></div>`;
 
   document.getElementById('browse-list').innerHTML = html;
 }
 
-function browseQuestion(qid) {
-  currentMode = 'browse';
-  const q = questions.find(q => q.id === qid);
-  if (!q) return;
+function startTestFromBrowseList() {
   const search = (document.getElementById('browse-search')?.value || '').toLowerCase();
-  const qtype = document.getElementById('browse-type')?.value || '';
   let filtered = questions;
   if (search) filtered = filtered.filter(q => q.stem.includes(search) || (q.category||'').includes(search));
-  if (qtype) filtered = filtered.filter(q => q.qtype === qtype);
-  currentQuestionList = filtered;
-  currentQIndex = filtered.findIndex(q => q.id === qid);
+  if (browseFilterType) filtered = filtered.filter(q => q.qtype === browseFilterType);
+
+  if (filtered.length === 0) { alert('没有符合条件的题目'); return; }
+
+  currentMode = 'browse';
+  currentQuestionList = [...filtered];
+  currentQIndex = 0;
   selectedAnswers = new Set();
   showResult = false;
   navTo('practice');
   document.getElementById('page-practice').classList.add('active');
   document.querySelectorAll('.page').forEach(p => { if (p.id !== 'page-practice') p.classList.remove('active'); });
-  document.getElementById('prac-title').textContent = '浏览题目';
+  document.getElementById('prac-title').textContent = '背诵测试';
   document.getElementById('prac-setup').classList.add('hidden');
+  document.getElementById('prac-result').classList.add('hidden');
   document.getElementById('prac-question').classList.remove('hidden');
   renderQuestion();
+}
+
+// browseQuestion - used by other pages (favorites, history, statistics click)
+function browseQuestion(qid) {
+  currentMode = 'browse';
+  const q = questions.find(q => q.id === qid);
+  if (!q) return;
+  currentQuestionList = [q];
+  currentQIndex = 0;
+  selectedAnswers = new Set();
+  showResult = false;
+  navTo('practice');
+  document.getElementById('page-practice').classList.add('active');
+  document.querySelectorAll('.page').forEach(p => { if (p.id !== 'page-practice') p.classList.remove('active'); });
+  document.getElementById('prac-title').textContent = '练习';
+  document.getElementById('prac-setup').classList.add('hidden');
+  document.getElementById('prac-result').classList.add('hidden');
+  document.getElementById('prac-question').classList.remove('hidden');
+  renderQuestion();
+}
+
+async function toggleFavBrowseList(qid) {
+  if (favSet.has(qid)) {
+    await dbDelete('favorites', qid);
+    favSet.delete(qid);
+  } else {
+    const tag = prompt('输入标签（可选，直接确定跳过）:') || '';
+    await dbPut('favorites', { questionId: qid, tag });
+    favSet.add(qid);
+  }
+  renderBrowse();
 }
 
 // ==================== FAVORITES ====================
