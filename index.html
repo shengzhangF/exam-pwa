@@ -683,10 +683,11 @@ function exitPractice() {
 
 // ==================== TIMED EXAM ====================
 function startTimedExam() {
-  const timeBtns = document.querySelectorAll('#prac-setup .chips:first-of-type .chip');
+  const chipGroups = document.querySelectorAll('#prac-setup .chips');
+  const timeBtns = chipGroups[0] ? chipGroups[0].querySelectorAll('.chip') : [];
   let duration = 10;
   timeBtns.forEach(b => { if (b.classList.contains('active')) duration = parseInt(b.dataset.v); });
-  const countBtns = document.querySelectorAll('#prac-setup .chips:last-of-type .chip');
+  const countBtns = chipGroups[1] ? chipGroups[1].querySelectorAll('.chip') : [];
   let count = 20;
   countBtns.forEach(b => { if (b.classList.contains('active')) count = parseInt(b.dataset.v); });
 
