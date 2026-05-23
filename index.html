@@ -760,7 +760,7 @@ function renderTimedQuestion() {
   html += `<div class="flex-row p16">
     <button class="btn btn-outline" style="flex:1" onclick="prevTimedQuestion()" ${currentQIndex===0?'disabled':''}>← 上一题</button>
     <button class="btn btn-outline" style="flex:1" onclick="nextTimedQuestion()" ${currentQIndex>=currentQuestionList.length-1?'disabled':''}>下一题 →</button>
-    <button class="btn btn-red" style="flex:1" onclick="if(confirm('确定交卷？'))submitTimedExam()">交卷</button>
+    <button class="btn btn-red" style="flex:1" onclick="confirmSubmitTimed()">交卷</button>
   </div>`;
 
   document.getElementById('prac-question').innerHTML = html;
@@ -781,6 +781,22 @@ function toggleExamAnswer(qid, val) {
 function jumpToQuestion(i) { currentQIndex = i; renderTimedQuestion(); }
 function prevTimedQuestion() { if (currentQIndex > 0) { currentQIndex--; renderTimedQuestion(); } }
 function nextTimedQuestion() { if (currentQIndex < currentQuestionList.length - 1) { currentQIndex++; renderTimedQuestion(); } }
+
+function countUnanswered() {
+  return currentQuestionList.filter(q => !examAnswers[q.id] || examAnswers[q.id].size === 0).length;
+}
+
+function confirmSubmitTimed() {
+  const unanswered = countUnanswered();
+  const msg = unanswered > 0 ? `还有 ${unanswered} 道题目未作答！\n\n确定要交卷吗？\n（未作答的题目将计为错误）` : '确定交卷？';
+  if (confirm(msg)) submitTimedExam();
+}
+
+function confirmSubmitMock() {
+  const unanswered = countUnanswered();
+  const msg = unanswered > 0 ? `还有 ${unanswered} 道题目未作答！\n\n确定要交卷吗？\n（未作答的题目将计为错误）` : '确定交卷？';
+  if (confirm(msg)) submitMockExam();
+}
 
 async function submitTimedExam() {
   examSubmitted = true;
@@ -889,7 +905,7 @@ function renderMockExamQuestion() {
   html += `<div class="flex-row p16">
     <button class="btn btn-outline" style="flex:1" onclick="prevMockQ()" ${currentQIndex===0?'disabled':''}>← 上一题</button>
     <button class="btn btn-outline" style="flex:1" onclick="nextMockQ()" ${currentQIndex>=currentQuestionList.length-1?'disabled':''}>下一题 →</button>
-    <button class="btn btn-red" style="flex:1" onclick="if(confirm('确定交卷？'))submitMockExam()">交卷</button>
+    <button class="btn btn-red" style="flex:1" onclick="confirmSubmitMock()">交卷</button>
   </div>`;
 
   document.getElementById('prac-question').innerHTML = html;
@@ -911,6 +927,7 @@ async function submitMockExam() {
     await dbPut('history', { questionId: q.id, userAnswer: userAns, correct, timestamp: Date.now() });
     if (!correct) {
       const today = getToday();
+      const existing = await dbGet('ebbinghaus', q.id);
       if (existing) {
         existing.reviewStage = 0;
         existing.nextReviewDate = addDays(today, 0);
