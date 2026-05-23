@@ -1880,6 +1880,11 @@ async function saveEditedQuestion(oldId) {
   const data = readEditorForm();
   if (!data) return;
 
+  if (data.id !== oldId && questions.some(q => q.id === data.id)) {
+    alert(`题号 ${data.id} 已被其他题目使用，请换一个题号！`);
+    return;
+  }
+
   // Remove old, add updated
   const idx = questions.findIndex(q => q.id === oldId);
   if (idx >= 0) questions.splice(idx, 1);
@@ -1898,7 +1903,12 @@ async function saveNewQuestion() {
   const data = readEditorForm();
   if (!data) return;
 
-  if (questions.some(q => q.id === data.id)) { alert('题号已存在！'); return; }
+  if (questions.some(q => q.id === data.id)) {
+    const maxId = questions.reduce((m, q) => Math.max(m, q.id), 0);
+    const suggestId = maxId + 1;
+    if (!confirm(`题号 ${data.id} 已存在！\n\n是否使用可用题号 ${suggestId} 继续保存？\n\n点击"确定"自动改为 ${suggestId}，点击"取消"返回修改。`)) return;
+    data.id = suggestId;
+  }
   questions.push(data);
   questions.sort((a, b) => a.id - b.id);
   await dbPut('questions', data);
