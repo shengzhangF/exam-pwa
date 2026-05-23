@@ -1400,12 +1400,15 @@ function exportCSV() {
   downloadFile('题库导出.csv', csv, 'text/csv');
 }
 
+const SENSITIVE_KEYS = ['admin_password', 'github_token', 'github_repo'];
 async function exportSyncData() {
+  const allSettings = await dbGetAll('settings');
+  const safeSettings = allSettings.filter(s => !SENSITIVE_KEYS.includes(s.key));
   const data = {
     history: await dbGetAll('history'),
     favorites: await dbGetAll('favorites'),
     ebbinghaus: await dbGetAll('ebbinghaus'),
-    settings: await dbGetAll('settings'),
+    settings: safeSettings,
     progress: await dbGetAll('progress'),
     exportedAt: new Date().toISOString()
   };
@@ -1425,7 +1428,7 @@ async function importSyncData() {
     if (data.history) { for (const h of data.history) { await dbPut('history', h); count++; } }
     if (data.favorites) { for (const f of data.favorites) { await dbPut('favorites', f); count++; } }
     if (data.ebbinghaus) { for (const e of data.ebbinghaus) { await dbPut('ebbinghaus', e); count++; } }
-    if (data.settings) { for (const s of data.settings) { await dbPut('settings', s); count++; } }
+    if (data.settings) { for (const s of data.settings) { if (!SENSITIVE_KEYS.includes(s.key)) { await dbPut('settings', s); count++; } } }
     if (data.progress) { for (const p of data.progress) { await dbPut('progress', p); count++; } }
     alert(`导入完成！共导入 ${count} 条数据`);
     updateStats();
@@ -1586,9 +1589,6 @@ async function syncToGitHub() {
 }
 
 async function showAdminGate() {
-  const savedPwd = await dbGet('settings', 'admin_password');
-  const pwd = savedPwd ? savedPwd.value : ADMIN_DEFAULT_PASSWORD;
-
   document.getElementById('admin-content').innerHTML = `
     <div class="card" style="text-align:center">
       <p style="font-size:48px">🔑</p>
@@ -1596,7 +1596,7 @@ async function showAdminGate() {
       <p class="text-sm mt8 mb12">请输入管理密码</p>
       <input type="password" id="admin-pwd-input" class="mb8" placeholder="默认密码: admin123">
       <div class="flex-row">
-        <button class="btn btn-dark" style="flex:1" onclick="checkAdminPassword('${pwd}')">确认</button>
+        <button class="btn btn-dark" style="flex:1" onclick="checkAdminPassword()">确认</button>
         <button class="btn btn-outline" style="flex:1" onclick="navTo('settings')">取消</button>
       </div>
       <p class="text-xs mt8" style="cursor:pointer;color:#4F46E5" onclick="showChangePassword()">修改管理密码</p>
@@ -1606,8 +1606,10 @@ async function showAdminGate() {
   document.querySelectorAll('.page').forEach(p => { if (p.id !== 'page-admin') p.classList.remove('active'); });
 }
 
-function checkAdminPassword(correctPwd) {
+async function checkAdminPassword() {
   const input = document.getElementById('admin-pwd-input').value;
+  const savedPwd = await dbGet('settings', 'admin_password');
+  const correctPwd = savedPwd ? savedPwd.value : ADMIN_DEFAULT_PASSWORD;
   if (input === correctPwd) {
     adminAuthed = true;
     renderAdmin();
@@ -1617,8 +1619,15 @@ function checkAdminPassword(correctPwd) {
 }
 
 async function showChangePassword() {
+  const oldPwd = prompt('请输入当前管理密码：');
+  if (!oldPwd) return;
+  const savedPwd = await dbGet('settings', 'admin_password');
+  const correctPwd = savedPwd ? savedPwd.value : ADMIN_DEFAULT_PASSWORD;
+  if (oldPwd !== correctPwd) { alert('当前密码错误！'); return; }
   const newPwd = prompt('请输入新管理密码（6位以上）:');
   if (!newPwd || newPwd.length < 6) { alert('密码至少6位'); return; }
+  const confirmPwd = prompt('请再次输入新管理密码确认：');
+  if (newPwd !== confirmPwd) { alert('两次输入的密码不一致！'); return; }
   await dbPut('settings', { key: 'admin_password', value: newPwd });
   alert('管理密码已修改！');
 }
