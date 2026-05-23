@@ -531,9 +531,7 @@ function renderQuestion() {
     <span class="text-sm" style="margin-left:8px">题目 ${q.id}</span>
     <span style="margin-left:auto;cursor:pointer;font-size:20px" onclick="event.stopPropagation();toggleFav(${q.id})">${favSet.has(q.id)?'❤️':'🤍'}</span>`;
 
-  if (currentMode === 'sequential' || currentMode === 'wrong' || currentMode === 'browse') {
-    html += `<span class="text-sm" style="float:right">${currentQIndex+1}/${currentQuestionList.length}</span>`;
-  }
+  html += `<span class="text-sm" style="float:right">${currentQIndex+1}/${currentQuestionList.length}</span>`;
 
   html += `<div class="q-stem mt8">${q.stem}</div>`;
 
@@ -578,7 +576,11 @@ function renderQuestion() {
   html += `</div>`;
 
   if (!showResult) {
-    html += `<button class="btn btn-dark mt12" onclick="submitAnswer()" ${selectedAnswers.size===0?'disabled':''}>提交答案</button>`;
+    html += `<div class="flex-row mt12">
+      <button class="btn btn-outline" style="flex:1" onclick="prevQuestion()" ${currentQIndex===0?'disabled':''}>← 上一题</button>
+      <button class="btn btn-dark" style="flex:1" onclick="submitAnswer()" ${selectedAnswers.size===0?'disabled':''}>提交答案</button>
+      <button class="btn btn-outline" style="flex:1" onclick="nextQuestion()">下一题 →</button>
+    </div>`;
   } else {
     html += `<div class="card mt12" style="background:${isCorrect?'#E8F5E9':'#FFEBEE'}">
       <div class="flex-row"><span style="font-size:24px">${isCorrect?'✓':'✗'}</span><div><strong>${isCorrect?'回答正确！':'回答错误'}</strong>${!isCorrect?`<p class="text-sm">正确答案: ${q.answer}</p>`:''}</div></div>
@@ -586,11 +588,9 @@ function renderQuestion() {
     if (q.note && !isCorrect) {
       html += `<div class="card mt8" style="background:#FFF8E1;border-left:4px solid #FF9800"><p class="text-sm" style="color:#E65100"><strong>📝 解析：</strong>${q.note}</p></div>`;
     }
-    html += `<div class="flex-row mt12">`;
-    if (currentMode === 'sequential' || currentMode === 'wrong' || currentMode === 'browse') {
-      html += `<button class="btn btn-outline" style="flex:1" onclick="prevQuestion()" ${currentQIndex===0?'disabled':''}>← 上一题</button>`;
-    }
-    html += `<button class="btn btn-blue" style="flex:1" onclick="nextQuestion()">下一题 →</button></div>`;
+    html += `<div class="flex-row mt12">
+      <button class="btn btn-outline" style="flex:1" onclick="prevQuestion()" ${currentQIndex===0?'disabled':''}>← 上一题</button>
+      <button class="btn btn-blue" style="flex:1" onclick="nextQuestion()">下一题 →</button></div>`;
   }
 
   document.getElementById('prac-question').innerHTML = html;
@@ -1047,11 +1047,17 @@ function renderEbbinghausQuestion() {
   html += `</div>`;
 
   if (!showResult) {
-    html += `<button class="btn btn-dark mt12" onclick="submitEbbinghausAnswer()" ${selectedAnswers.size===0?'disabled':''}>提交答案</button>`;
+    html += `<div class="flex-row mt12">
+      <button class="btn btn-outline" style="flex:1" onclick="prevEbbinghausQuestion()" ${currentQIndex===0?'disabled':''}>← 上一题</button>
+      <button class="btn btn-dark" style="flex:1" onclick="submitEbbinghausAnswer()" ${selectedAnswers.size===0?'disabled':''}>提交答案</button>
+      <button class="btn btn-outline" style="flex:1" onclick="nextEbbinghausQuestion()">下一题 →</button>
+    </div>`;
   } else {
     html += `<div class="card mt12" style="background:${isCorrect?'#E8F5E9':'#FFEBEE'}">
       <div class="flex-row"><span style="font-size:24px">${isCorrect?'✓':'✗'}</span><div><strong>${isCorrect?'回答正确！':'回答错误'}</strong>${!isCorrect?`<p class="text-sm">正确答案: ${q.answer}</p>`:''}</div></div></div>`;
-    html += `<button class="btn btn-blue mt12" onclick="nextEbbinghausQuestion()">下一题 →</button>`;
+    html += `<div class="flex-row mt12">
+      <button class="btn btn-outline" style="flex:1" onclick="prevEbbinghausQuestion()" ${currentQIndex===0?'disabled':''}>← 上一题</button>
+      <button class="btn btn-blue" style="flex:1" onclick="nextEbbinghausQuestion()">下一题 →</button></div>`;
   }
 
   document.getElementById('prac-question').innerHTML = html;
@@ -1086,6 +1092,15 @@ async function submitEbbinghausAnswer() {
   renderEbbinghausQuestion();
   updateStats();
   updateEbbBadge();
+}
+
+function prevEbbinghausQuestion() {
+  if (currentQIndex > 0) {
+    currentQIndex--;
+    selectedAnswers = new Set();
+    showResult = false;
+    renderEbbinghausQuestion();
+  }
 }
 
 function nextEbbinghausQuestion() {
