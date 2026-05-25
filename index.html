@@ -200,6 +200,10 @@ textarea{min-height:60px;resize:vertical}
   </div>
   <div id="browse-filters">
     <div class="p16" style="padding-bottom:4px"><input type="text" id="browse-search" placeholder="🔍 搜索题目..." oninput="browsePage=1;renderBrowse()"></div>
+    <div class="p16 flex-row" style="padding-top:0;gap:8px">
+      <input type="number" id="browse-jump-qid" placeholder="跳转到题号..." style="flex:1;padding:10px 14px;border:1.5px solid #D1D5DB;border-radius:10px;font-size:14px;min-width:0" onkeydown="if(event.key==='Enter')jumpToQuestion()">
+      <button class="btn btn-dark" style="width:auto;padding:10px 16px;font-size:13px" onclick="jumpToQuestion()">跳转</button>
+    </div>
     <div class="chips p16" style="padding-top:0">
       <button class="chip active" id="browse-chip-all" onclick="filterBrowseType(this,'')">全部</button>
       <button class="chip" id="browse-chip-single" onclick="filterBrowseType(this,'单选题')">单选题</button>
@@ -1147,6 +1151,25 @@ function filterBrowseType(btn, type) {
   renderBrowse();
 }
 
+function jumpToQuestion() {
+  const inp = document.getElementById('browse-jump-qid');
+  const qid = parseInt(inp.value);
+  if (isNaN(qid) || qid < 1) return;
+  const idx = questions.findIndex(q => q.id === qid);
+  if (idx === -1) {
+    alert(`未找到题号 #${qid}`);
+    return;
+  }
+  browseFilterType = '';
+  browsePage = 1;
+  document.getElementById('browse-search').value = '';
+  document.querySelectorAll('#browse-filters .chip').forEach(c => c.classList.remove('active'));
+  document.getElementById('browse-chip-all').classList.add('active');
+  browsePage = Math.ceil((idx + 1) / PAGE_SIZE);
+  renderBrowse();
+  window.scrollTo(0, 0);
+}
+
 function renderBrowse() {
   const search = (document.getElementById('browse-search')?.value || '').toLowerCase();
 
@@ -1202,10 +1225,12 @@ function renderBrowse() {
     html += `</div>`;
   });
 
-  html += `<div class="flex-row mt16" style="justify-content:center;gap:12px">`;
+  html += `<div class="flex-row mt16" style="justify-content:center;gap:8px;align-items:center;flex-wrap:wrap">`;
   html += `<button class="btn btn-outline" style="width:auto" onclick="browsePage=Math.max(1,browsePage-1);renderBrowse();window.scrollTo(0,0)" ${browsePage===1?'disabled':''}>← 上一页</button>`;
   html += `<span class="text-sm" style="font-weight:600">${browsePage} / ${totalPages||1}</span>`;
-  html += `<button class="btn btn-outline" style="width:auto" onclick="browsePage=Math.min(${totalPages||1},browsePage+1);renderBrowse();window.scrollTo(0,0)" ${browsePage>=totalPages?'disabled':''}>下一页 →</button></div>`;
+  html += `<button class="btn btn-outline" style="width:auto" onclick="browsePage=Math.min(${totalPages||1},browsePage+1);renderBrowse();window.scrollTo(0,0)" ${browsePage>=totalPages?'disabled':''}>下一页 →</button>`;
+  html += `<input type="number" id="browse-jump-page" placeholder="页码" style="width:65px;padding:8px;border:1.5px solid #D1D5DB;border-radius:10px;font-size:14px;text-align:center" min="1" max="${totalPages||1}" onkeydown="if(event.key==='Enter'){let p=parseInt(this.value);if(p>=1&&p<=${totalPages||1}){browsePage=p;renderBrowse();window.scrollTo(0,0)}}">`;
+  html += `<button class="btn btn-dark" style="width:auto;padding:8px 12px;font-size:12px" onclick="let inp=document.getElementById('browse-jump-page');let p=parseInt(inp.value);if(p>=1&&p<=${totalPages||1}){browsePage=p;renderBrowse();window.scrollTo(0,0)}">GO</button></div>`;
 
   document.getElementById('browse-list').innerHTML = html;
 }
