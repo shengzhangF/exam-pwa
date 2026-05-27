@@ -1875,6 +1875,20 @@ async function batchDeleteSelected() {
   alert(`已删除 ${count} 题`);
 }
 
+let _adminSearchTimer = null;
+function debounceAdminSearch() {
+  const inp = document.getElementById('admin-search');
+  if (!inp) return;
+  adminSearchTerm = inp.value;
+  adminPage = 1;
+  if (_adminSearchTimer) clearTimeout(_adminSearchTimer);
+  _adminSearchTimer = setTimeout(() => {
+    renderAdminList();
+    const newInp = document.getElementById('admin-search');
+    if (newInp) { newInp.focus(); newInp.setSelectionRange(newInp.value.length, newInp.value.length); }
+  }, 250);
+}
+
 function renderAdminList() {
   const search = adminSearchTerm.toLowerCase();
   let filtered = questions;
@@ -1901,7 +1915,7 @@ function renderAdminList() {
     </div></div>`;
 
   html += `<div class="flex-row mb8">
-    <input type="text" id="admin-search" placeholder="🔍 搜索题号/内容..." style="flex:2" value="${escapeHtml(adminSearchTerm)}" oninput="adminSearchTerm=this.value;adminPage=1;renderAdminList()">
+    <input type="text" id="admin-search" placeholder="🔍 搜索题号/内容..." style="flex:2" value="${escapeHtml(adminSearchTerm)}" oninput="debounceAdminSearch()">
     <select style="flex:1" onchange="adminFilterType=this.value;adminPage=1;renderAdminList()">
       <option value="">全部题型</option>${types.map(t => `<option value="${t}" ${adminFilterType===t?'selected':''}>${t}</option>`).join('')}
     </select></div>`;
