@@ -737,6 +737,9 @@ function exitPractice() {
 
 // ==================== TIMED EXAM ====================
 function startTimedExam() {
+  if (examTimer) { clearInterval(examTimer); examTimer = null; }
+  examTimeLeft = 0;
+  examTotalTime = 0;
   const chipGroups = document.querySelectorAll('#prac-setup .chips');
   const timeBtns = chipGroups[0] ? chipGroups[0].querySelectorAll('.chip') : [];
   let duration = 10;
@@ -830,7 +833,11 @@ function toggleExamAnswer(qid, val) {
     examAnswers[qid].clear();
     examAnswers[qid].add(val);
   }
-  renderTimedQuestion();
+  if (currentMode === 'mock') {
+    renderMockExamQuestion();
+  } else {
+    renderTimedQuestion();
+  }
 }
 
 function jumpToQuestion(i) { currentQIndex = i; renderTimedQuestion(); }
@@ -902,6 +909,8 @@ async function submitTimedExam() {
 // ==================== MOCK EXAM ====================
 function startMockExam() {
   if (examTimer) { clearInterval(examTimer); examTimer = null; }
+  examTimeLeft = 0;
+  examTotalTime = 0;
   const countBtns = document.querySelectorAll('#prac-setup .chips .chip');
   let count = 20;
   countBtns.forEach(b => { if (b.classList.contains('active')) count = parseInt(b.dataset.v); });
