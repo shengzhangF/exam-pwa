@@ -1,4 +1,4 @@
-const CACHE = 'exammaster-v8';
+const CACHE = 'exammaster-v9';
 const ASSETS = ['./', './index.html', './manifest.json', './questions.json'];
 
 self.addEventListener('install', e => {
@@ -25,15 +25,14 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  // Wrap everything so a broken SW never blocks the page from loading
   try {
     const url = new URL(e.request.url);
     if (url.origin !== self.location.origin) return;
 
-    // Network-first for questions.json
+    // Network-first for questions.json — bypass HTTP cache
     if (url.pathname.endsWith('questions.json')) {
       e.respondWith(
-        fetch(e.request).then(res => {
+        fetch(e.request, { cache: 'no-cache' }).then(res => {
           if (res.ok) {
             const clone = res.clone();
             caches.open(CACHE).then(c => c.put(e.request, clone));
@@ -49,17 +48,17 @@ self.addEventListener('fetch', e => {
       return;
     }
 
-    // Network-first for HTML pages
+    // Network-first for HTML pages — bypass HTTP cache
     if (e.request.mode === 'navigate' || url.pathname.endsWith('.html')) {
       e.respondWith(
-        fetch(e.request).then(res => {
+        fetch(e.request, { cache: 'no-cache' }).then(res => {
           if (res.ok) {
             const clone = res.clone();
             caches.open(CACHE).then(c => c.put(e.request, clone));
           }
           return res;
         }).catch(() =>
-          caches.match(e.request).then(c => c || fetch(e.request).catch(() =>
+          caches.match(e.request).then(c => c || fetch(e.request, { cache: 'no-cache' }).catch(() =>
             new Response('Offline', { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } })
           ))
         )
@@ -70,7 +69,7 @@ self.addEventListener('fetch', e => {
     // Cache-first for static assets
     e.respondWith(
       caches.match(e.request).then(cached =>
-        cached || fetch(e.request).then(res => {
+        cached || fetch(e.request, { cache: 'no-cache' }).then(res => {
           if (res.ok) {
             const clone = res.clone();
             caches.open(CACHE).then(c => c.put(e.request, clone));
@@ -80,7 +79,6 @@ self.addEventListener('fetch', e => {
       )
     );
   } catch(err) {
-    // If the SW handler itself throws, let the request go to network normally
-    // by not calling e.respondWith()
+    // If the SW handler itself throws, let the request go to network
   }
 });
