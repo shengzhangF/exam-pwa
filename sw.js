@@ -1,4 +1,4 @@
-const CACHE = 'exammaster-v5';
+const CACHE = 'exammaster-v6';
 const ASSETS = ['./', './index.html', './manifest.json', './questions.json'];
 
 self.addEventListener('install', e => {
@@ -7,7 +7,15 @@ self.addEventListener('install', e => {
       console.warn('SW install: some assets failed to cache', err);
     }))
   );
-  self.skipWaiting();
+  // Don't call self.skipWaiting() — let the user trigger the update manually.
+  // Auto-activation forces a page reload that can interrupt IndexedDB writes
+  // and cause data loss (history, favorites, ebbinghaus progress).
+});
+
+self.addEventListener('message', e => {
+  if (e.data && e.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('activate', e => {
@@ -17,12 +25,6 @@ self.addEventListener('activate', e => {
     )
   );
   self.clients.claim();
-  // Notify all open pages to refresh so old cache doesn't stick
-  e.waitUntil(
-    self.clients.matchAll({ type: 'window' }).then(clients => {
-      clients.forEach(client => client.postMessage({ type: 'SW_UPDATED' }));
-    })
-  );
 });
 
 self.addEventListener('fetch', e => {
