@@ -2175,6 +2175,10 @@ async function init() {
             showUpdateBanner();
           }
         });
+        // Also check immediately — if SW already reached 'installed' before we added the listener, we'd miss it
+        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+          showUpdateBanner();
+        }
       });
     }).catch(() => {});
 
