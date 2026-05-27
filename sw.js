@@ -1,4 +1,4 @@
-const CACHE = 'exammaster-v7';
+const CACHE = 'exammaster-v8';
 const ASSETS = ['./', './index.html', './manifest.json', './questions.json'];
 
 self.addEventListener('install', e => {
@@ -7,9 +7,6 @@ self.addEventListener('install', e => {
       console.warn('SW install: some assets failed to cache', err);
     }))
   );
-  // Don't call self.skipWaiting() — let the user trigger the update manually.
-  // Auto-activation forces a page reload that can interrupt IndexedDB writes
-  // and cause data loss (history, favorites, ebbinghaus progress).
 });
 
 self.addEventListener('message', e => {
@@ -28,47 +25,55 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  const url = new URL(e.request.url);
-  if (url.origin !== self.location.origin) return;
+  // Wrap everything so a broken SW never blocks the page from loading
+  try {
+    const url = new URL(e.request.url);
+    if (url.origin !== self.location.origin) return;
 
-  // Network-first for questions.json (always get latest data)
-  if (url.pathname.endsWith('questions.json')) {
+    // Network-first for questions.json
+    if (url.pathname.endsWith('questions.json')) {
+      e.respondWith(
+        fetch(e.request).then(res => {
+          if (res.ok) {
+            const clone = res.clone();
+            caches.open(CACHE).then(c => c.put(e.request, clone));
+          }
+          return res;
+        }).catch(() => caches.match(e.request).then(c => c || Response.error()))
+      );
+      return;
+    }
+
+    // Network-first for HTML pages
+    if (e.request.mode === 'navigate' || url.pathname.endsWith('.html')) {
+      e.respondWith(
+        fetch(e.request).then(res => {
+          if (res.ok) {
+            const clone = res.clone();
+            caches.open(CACHE).then(c => c.put(e.request, clone));
+          }
+          return res;
+        }).catch(() =>
+          caches.match(e.request).then(c => c || fetch(e.request))
+        )
+      );
+      return;
+    }
+
+    // Cache-first for static assets
     e.respondWith(
-      fetch(e.request).then(res => {
-        if (res.ok) {
-          const clone = res.clone();
-          caches.open(CACHE).then(c => c.put(e.request, clone));
-        }
-        return res;
-      }).catch(() => caches.match(e.request))
+      caches.match(e.request).then(cached =>
+        cached || fetch(e.request).then(res => {
+          if (res.ok) {
+            const clone = res.clone();
+            caches.open(CACHE).then(c => c.put(e.request, clone));
+          }
+          return res;
+        }).catch(() => cached || new Response('Offline', { status: 503 }))
+      )
     );
-    return;
+  } catch(err) {
+    // If the SW handler itself throws, let the request go to network normally
+    // by not calling e.respondWith()
   }
-
-  // Network-first for the HTML page itself (so users always get latest app)
-  if (e.request.mode === 'navigate' || url.pathname.endsWith('.html')) {
-    e.respondWith(
-      fetch(e.request).then(res => {
-        if (res.ok) {
-          const clone = res.clone();
-          caches.open(CACHE).then(c => c.put(e.request, clone));
-        }
-        return res;
-      }).catch(() => caches.match(e.request))
-    );
-    return;
-  }
-
-  // Cache-first for static assets
-  e.respondWith(
-    caches.match(e.request).then(cached =>
-      cached || fetch(e.request).then(res => {
-        if (res.ok) {
-          const clone = res.clone();
-          caches.open(CACHE).then(c => c.put(e.request, clone));
-        }
-        return res;
-      }).catch(() => cached || new Response('Offline', { status: 503 }))
-    )
-  );
 });
