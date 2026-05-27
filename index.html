@@ -340,6 +340,54 @@ function dbDelete(store, key) { return new Promise((resolve, reject) => { const 
 function dbClear(store) { return new Promise((resolve, reject) => { const tx = db.transaction(store, 'readwrite'); const req = tx.objectStore(store).clear(); req.onsuccess = () => resolve(); req.onerror = () => reject(req.error); }); }
 function dbCount(store) { return new Promise((resolve, reject) => { const tx = db.transaction(store, 'readonly'); const req = tx.objectStore(store).count(); req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error); }); }
 
+// ==================== AUTO-BACKUP (localStorage safety net) ====================
+const BACKUP_KEY = 'exammaster_backup';
+let _backupTimer = null;
+
+function scheduleBackup() {
+  if (_backupTimer) clearTimeout(_backupTimer);
+  _backupTimer = setTimeout(doBackup, 2000);
+}
+
+async function doBackup() {
+  try {
+    const backup = {
+      history: await dbGetAll('history'),
+      favorites: await dbGetAll('favorites'),
+      ebbinghaus: await dbGetAll('ebbinghaus'),
+      progress: await dbGetAll('progress'),
+      ts: Date.now()
+    };
+    localStorage.setItem(BACKUP_KEY, JSON.stringify(backup));
+  } catch(e) { /* best-effort, fail silently */ }
+}
+
+async function restoreFromBackup() {
+  const raw = localStorage.getItem(BACKUP_KEY);
+  if (!raw) return false;
+  try {
+    const backup = JSON.parse(raw);
+    if (!backup.ts || Date.now() - backup.ts > 30 * 24 * 3600 * 1000) return false;
+    let restored = 0;
+    if (backup.history && backup.history.length > 0) {
+      for (const h of backup.history) { await dbPut('history', h); restored++; }
+    }
+    if (backup.favorites && backup.favorites.length > 0) {
+      for (const f of backup.favorites) { await dbPut('favorites', f); restored++; }
+    }
+    if (backup.ebbinghaus && backup.ebbinghaus.length > 0) {
+      for (const e of backup.ebbinghaus) { await dbPut('ebbinghaus', e); restored++; }
+    }
+    if (backup.progress && backup.progress.length > 0) {
+      for (const p of backup.progress) { await dbPut('progress', p); restored++; }
+    }
+    return restored > 0;
+  } catch(e) {
+    localStorage.removeItem(BACKUP_KEY);
+    return false;
+  }
+}
+
 // ==================== STATE ====================
 let questions = [];
 let currentMode = null;
@@ -655,6 +703,7 @@ async function submitAnswer() {
   renderQuestion();
   updateStats();
   updateEbbBadge();
+  scheduleBackup();
 }
 
 function nextQuestion() {
@@ -847,6 +896,7 @@ async function submitTimedExam() {
   document.getElementById('prac-question').innerHTML = html;
   updateStats();
   updateEbbBadge();
+  scheduleBackup();
 }
 
 // ==================== MOCK EXAM ====================
@@ -962,6 +1012,7 @@ async function submitMockExam() {
   document.getElementById('prac-question').innerHTML = html;
   updateStats();
   updateEbbBadge();
+  scheduleBackup();
 }
 
 // ==================== EBBINGHAUS ====================
@@ -1117,6 +1168,7 @@ async function submitEbbinghausAnswer() {
   renderEbbinghausQuestion();
   updateStats();
   updateEbbBadge();
+  scheduleBackup();
 }
 
 function prevEbbinghausQuestion() {
@@ -1305,6 +1357,7 @@ async function toggleFav(qid) {
     await dbPut('favorites', { questionId: qid, tag });
     favSet.add(qid);
   }
+  scheduleBackup();
   if (currentMode === 'ebbinghaus') {
     renderEbbinghausQuestion();
   } else {
@@ -1341,6 +1394,7 @@ async function editTag(qid, currentTag) {
 
 async function removeFav(qid) {
   await dbDelete('favorites', qid);
+  scheduleBackup();
   renderFavorites();
 }
 
@@ -1369,6 +1423,7 @@ async function renderHistory() {
 async function clearHistory() {
   await dbClear('history');
   await dbClear('ebbinghaus');
+  scheduleBackup();
   renderHistory();
   updateStats();
   updateEbbBadge();
@@ -1379,6 +1434,7 @@ async function resetAll() {
   await dbClear('favorites');
   await dbClear('ebbinghaus');
   await dbClear('progress');
+  scheduleBackup();
   navTo('home');
   updateStats();
   updateEbbBadge();
@@ -2092,6 +2148,17 @@ function escapeHtml(str) {
 // ==================== INIT ====================
 async function init() {
   await openDB();
+
+  // Check if IndexedDB data was lost — try to restore from localStorage backup
+  const histCount = await dbCount('history');
+  const favCount = await dbCount('favorites');
+  if (histCount === 0 && favCount === 0) {
+    const restored = await restoreFromBackup();
+    if (restored) {
+      console.log('Data restored from localStorage backup');
+    }
+  }
+
   await loadQuestions();
   updateStats();
   updateEbbBadge();
