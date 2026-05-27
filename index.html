@@ -1283,7 +1283,7 @@ function renderBrowse() {
   html += `<span class="text-sm" style="font-weight:600">${browsePage} / ${totalPages||1}</span>`;
   html += `<button class="btn btn-outline" style="width:auto" onclick="browsePage=Math.min(${totalPages||1},browsePage+1);renderBrowse();window.scrollTo(0,0)" ${browsePage>=totalPages?'disabled':''}>下一页 →</button>`;
   html += `<input type="number" id="browse-jump-page" placeholder="页码" style="width:65px;padding:8px;border:1.5px solid #D1D5DB;border-radius:10px;font-size:14px;text-align:center" min="1" max="${totalPages||1}" onkeydown="if(event.key==='Enter'){let p=parseInt(this.value);if(p>=1&&p<=${totalPages||1}){browsePage=p;renderBrowse();window.scrollTo(0,0)}}">`;
-  html += `<button class="btn btn-dark" style="width:auto;padding:8px 12px;font-size:12px" onclick="let inp=document.getElementById('browse-jump-page');let p=parseInt(inp.value);if(p>=1&&p<=${totalPages||1}){browsePage=p;renderBrowse();window.scrollTo(0,0)}">GO</button></div>`;
+  html += `<button class="btn btn-dark" style="width:auto;padding:8px 12px;font-size:12px" onclick="let inp=document.getElementById('browse-jump-page');let p=parseInt(inp.value);if(p>=1&&p<=${totalPages||1}){browsePage=p;renderBrowse();window.scrollTo(0,0)}">跳转</button></div>`;
 
   document.getElementById('browse-list').innerHTML = html;
 }
