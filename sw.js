@@ -39,7 +39,12 @@ self.addEventListener('fetch', e => {
             caches.open(CACHE).then(c => c.put(e.request, clone));
           }
           return res;
-        }).catch(() => caches.match(e.request).then(c => c || Response.error()))
+        }).catch(() =>
+          caches.match(e.request).then(c => c || new Response('[]', {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+          }))
+        )
       );
       return;
     }
@@ -54,7 +59,9 @@ self.addEventListener('fetch', e => {
           }
           return res;
         }).catch(() =>
-          caches.match(e.request).then(c => c || fetch(e.request))
+          caches.match(e.request).then(c => c || fetch(e.request).catch(() =>
+            new Response('Offline', { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } })
+          ))
         )
       );
       return;
