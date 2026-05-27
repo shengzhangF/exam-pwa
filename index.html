@@ -199,7 +199,7 @@ textarea{min-height:60px;resize:vertical}
     <span style="font-size:13px;color:#4F46E5;cursor:pointer" onclick="startTestFromBrowseList()">📝 去测试</span>
   </div>
   <div id="browse-filters">
-    <div class="p16" style="padding-bottom:4px"><input type="text" id="browse-search" placeholder="🔍 搜索题目..." oninput="browsePage=1;renderBrowse()"></div>
+    <div class="p16" style="padding-bottom:4px"><input type="text" id="browse-search" placeholder="🔍 搜索题号/题干..." oninput="debounceBrowseSearch()"></div>
     <div class="p16 flex-row" style="padding-top:0;gap:8px">
       <input type="number" id="browse-jump-qid" placeholder="跳转到题号..." style="flex:1;padding:10px 14px;border:1.5px solid #D1D5DB;border-radius:10px;font-size:14px;min-width:0" onkeydown="if(event.key==='Enter')jumpToQuestion()">
       <button class="btn btn-dark" style="width:auto;padding:10px 16px;font-size:13px" onclick="jumpToQuestion()">跳转</button>
@@ -901,6 +901,7 @@ async function submitTimedExam() {
 
 // ==================== MOCK EXAM ====================
 function startMockExam() {
+  if (examTimer) { clearInterval(examTimer); examTimer = null; }
   const countBtns = document.querySelectorAll('#prac-setup .chips .chip');
   let count = 20;
   countBtns.forEach(b => { if (b.classList.contains('active')) count = parseInt(b.dataset.v); });
@@ -1223,11 +1224,17 @@ function jumpToQuestion() {
   window.scrollTo(0, 0);
 }
 
+let _browseSearchTimer = null;
+function debounceBrowseSearch() {
+  if (_browseSearchTimer) clearTimeout(_browseSearchTimer);
+  _browseSearchTimer = setTimeout(() => { browsePage = 1; renderBrowse(); }, 250);
+}
+
 function renderBrowse() {
   const search = (document.getElementById('browse-search')?.value || '').toLowerCase();
 
   let filtered = questions;
-  if (search) filtered = filtered.filter(q => q.stem.includes(search) || (q.category||'').includes(search));
+  if (search) filtered = filtered.filter(q => q.stem.includes(search) || (q.category||'').includes(search) || String(q.id).includes(search));
   if (browseFilterType) filtered = filtered.filter(q => q.qtype === browseFilterType);
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
