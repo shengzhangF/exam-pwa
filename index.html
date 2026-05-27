@@ -240,7 +240,7 @@ textarea{min-height:60px;resize:vertical}
   <div class="header" style="position:sticky;top:0">
     <span style="font-size:20px;cursor:pointer" onclick="navTo('home')">← 返回</span>
     <span style="font-weight:600">答题历史</span>
-    <span style="color:#DC2626;cursor:pointer" onclick="clearHistory()">清空</span>
+    <span style="color:#DC2626;cursor:pointer" onclick="if(confirm('确定清除所有答题历史和复习记录？'))clearHistory()">清空</span>
   </div>
   <div id="hist-content" class="p16"></div>
 </div>
@@ -861,6 +861,7 @@ function confirmSubmitMock() {
 }
 
 async function submitTimedExam() {
+  if (examSubmitted) return;
   examSubmitted = true;
   if (examTimer) { clearInterval(examTimer); examTimer = null; }
 
@@ -983,6 +984,7 @@ function prevMockQ() { if (currentQIndex > 0) { currentQIndex--; renderMockExamQ
 function nextMockQ() { if (currentQIndex < currentQuestionList.length - 1) { currentQIndex++; renderMockExamQuestion(); } }
 
 async function submitMockExam() {
+  if (examSubmitted) return;
   examSubmitted = true;
   let score = 0;
   const results = [];
@@ -1376,6 +1378,10 @@ async function toggleFav(qid) {
   scheduleBackup();
   if (currentMode === 'ebbinghaus') {
     renderEbbinghausQuestion();
+  } else if (currentMode === 'mock') {
+    renderMockExamQuestion();
+  } else if (currentMode === 'timed') {
+    renderTimedQuestion();
   } else {
     renderQuestion();
   }
