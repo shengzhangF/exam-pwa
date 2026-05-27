@@ -2201,9 +2201,11 @@ function showUpdateBanner() {
   banner.addEventListener('click', () => {
     banner.textContent = '更新中...';
     banner.style.pointerEvents = 'none';
-    if (navigator.serviceWorker.controller) {
-      navigator.serviceWorker.controller.postMessage({ type: 'SKIP_WAITING' });
-    }
+    navigator.serviceWorker.getRegistration().then(reg => {
+      if (reg && reg.waiting) {
+        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+      }
+    });
   });
   document.body.appendChild(banner);
 }
