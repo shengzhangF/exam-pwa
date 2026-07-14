@@ -2617,12 +2617,20 @@ function publishPreview() {
       <p class="text-sm mb8" style="color:${selected.length === 200 ? '#4CAF50' : '#F59E0B'}">${selected.length === 200 ? '✅ 已选满200题，可以导出' : '⚠️ 还需选择 ' + (200 - selected.length) + ' 题'}</p>
       <div class="preview-list">`;
   selected.forEach((q, i) => {
+    const previewOpts = getOptions(q);
+    let optHtml = '';
+    previewOpts.forEach(([l, t]) => {
+      const isAns = (q.answer || '').includes(l);
+      optHtml += `<span style="display:inline-block;margin:2px 4px;padding:2px 8px;border-radius:4px;font-size:11px;background:${isAns ? '#E8F5E9' : '#F3F4F6'};color:${isAns ? '#2E7D32' : '#6B7280'};font-weight:${isAns ? '700' : '400'}">${l}. ${escapeHtml(t.length > 30 ? t.substring(0, 30) + '...' : t)}${isAns ? ' ✓' : ''}</span>`;
+    });
+
     html += `<div class="preview-item">
-      <div style="font-weight:600;margin-bottom:4px">${i + 1}. ${escapeHtml(q.stem)}</div>
-      <div style="color:#4CAF50;font-size:12px">
+      <div style="font-weight:600;margin-bottom:6px">${i + 1}. ${escapeHtml(q.stem)}</div>
+      <div style="margin-bottom:4px">${optHtml}</div>
+      <div style="font-size:11px">
         <span class="tag tag-blue">#${q.id}</span>
         <span class="tag tag-green">${q.qtype || '单选题'}</span>
-        答案：${escapeHtml(q.answer || '')}
+        <span style="color:#4CAF50;font-weight:600">答案：${escapeHtml(q.answer || '')}</span>
       </div>
     </div>`;
   });
