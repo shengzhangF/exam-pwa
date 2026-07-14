@@ -2421,7 +2421,7 @@ function renderPublishPage() {
     <div class="publish-actions">
       <button class="btn btn-blue" onclick="publishRandom200()">🎲 随机选取200题</button>
       <button class="btn btn-outline" onclick="publishClearAll()">🔄 清空选择</button>
-      <button class="btn btn-outline" onclick="publishPreview()" ${selCount === 0 ? 'disabled' : ''}>👁️ 预览已选（${selCount}题）</button>
+      <button class="btn btn-outline" id="publish-preview-btn" onclick="publishPreview()" ${selCount === 0 ? 'disabled' : ''}>👁️ 预览已选（${selCount}题）</button>
     </div>
 
     <div class="p16" style="padding-bottom:4px">
@@ -2565,6 +2565,13 @@ function refreshPublishListAndStats() {
   if (downloadBtn) {
     if (selCount === 200) { downloadBtn.disabled = false; downloadBtn.style.opacity = '1'; }
     else { downloadBtn.disabled = true; downloadBtn.style.opacity = '0.5'; }
+  }
+  // 更新预览按钮
+  const previewBtn = document.getElementById('publish-preview-btn');
+  if (previewBtn) {
+    previewBtn.textContent = '👁️ 预览已选（' + selCount + '题）';
+    if (selCount > 0) { previewBtn.disabled = false; previewBtn.style.opacity = '1'; }
+    else { previewBtn.disabled = true; previewBtn.style.opacity = '0.5'; }
   }
 }
 
