@@ -2436,15 +2436,18 @@ function renderPublishPage() {
 
   html += `
     <div class="publish-hint">
-      💡 <strong>操作提示：</strong>上传本地题库JSON → 选取恰好200题 → 导出JSON文件 → 转发给负责人上传至GitHub仓库 <code>exam/paper/today-exam.json</code>
+      💡 <strong>操作提示：</strong>选择题库 → 选取恰好200题 → 点击"📤 一键转发"通过微信发送给负责人 → 负责人上传至GitHub仓库 <code>exam/paper/today-exam.json</code>
     </div>`;
 
   if (count > 0) {
     html += `
     <div class="publish-bottom-bar">
       <span class="text-sm" style="flex:1">已选 <strong style="color:#1E40AF" id="publish-bottom-count">${selCount}</strong> / 200 题</span>
-      <button class="btn-export" style="width:auto;flex:2;font-size:14px" id="publish-export-btn" onclick="publishExportJSON()" ${selCount !== 200 ? 'disabled' : ''}>
-        📥 导出今日考卷JSON
+      <button class="btn-export" style="width:auto;flex:1;font-size:14px" id="publish-export-btn" onclick="publishShareJSON()" ${selCount !== 200 ? 'disabled' : ''}>
+        📤 一键转发
+      </button>
+      <button class="btn btn-outline" style="width:auto;flex:1;font-size:13px" id="publish-download-btn" onclick="publishDownloadJSON()" ${selCount !== 200 ? 'disabled' : ''}>
+        📥 下载
       </button>
     </div>`;
   }
@@ -2555,6 +2558,11 @@ function refreshPublishListAndStats() {
     if (selCount === 200) { exportBtn.disabled = false; exportBtn.style.opacity = '1'; }
     else { exportBtn.disabled = true; exportBtn.style.opacity = '0.5'; }
   }
+  const downloadBtn = document.getElementById('publish-download-btn');
+  if (downloadBtn) {
+    if (selCount === 200) { downloadBtn.disabled = false; downloadBtn.style.opacity = '1'; }
+    else { downloadBtn.disabled = true; downloadBtn.style.opacity = '0.5'; }
+  }
 }
 
 // 全选
@@ -2617,16 +2625,51 @@ function publishPreview() {
 }
 
 // 导出今日考卷JSON文件
-function publishExportJSON() {
-  if (examSelectedIds.size !== 200) {
-    alert(`必须恰好选中200道题目才能导出！\n当前已选 ${examSelectedIds.size} 题，${examSelectedIds.size < 200 ? '还差 ' + (200 - examSelectedIds.size) + ' 题' : '多了 ' + (examSelectedIds.size - 200) + ' 题，请取消多余选择'}。`);
-    return;
-  }
+// 获取选中题目并生成JSON
+function publishGetSelectedJSON() {
   const selected = examBankQuestions.filter(q => examSelectedIds.has(q.id));
   selected.sort((a, b) => a.id - b.id);
-  const json = JSON.stringify(selected, null, 2);
+  return JSON.stringify(selected, null, 2);
+}
+
+// 一键转发（使用Web Share API，支持微信等）
+async function publishShareJSON() {
+  if (examSelectedIds.size !== 200) {
+    alert(`必须恰好选中200道题目才能导出！\n当前已选 ${examSelectedIds.size} 题。`);
+    return;
+  }
+  const json = publishGetSelectedJSON();
+  const file = new File([json], 'today-exam.json', { type: 'application/json' });
+
+  if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({
+        files: [file],
+        title: '今日考卷',
+        text: '今日考卷JSON文件（200题），请上传至 exam/paper/today-exam.json'
+      });
+    } catch (e) {
+      if (e.name !== 'AbortError') {
+        // 分享失败，回退到下载
+        downloadFile('today-exam.json', json, 'application/json');
+      }
+    }
+  } else {
+    // 不支持文件分享，先下载再提示
+    downloadFile('today-exam.json', json, 'application/json');
+    alert('✅ 已下载 today-exam.json（200题）\n\n📌 请将文件通过微信转发给负责人，由负责人上传至：\nexam/paper/today-exam.json');
+  }
+}
+
+// 直接下载JSON文件
+function publishDownloadJSON() {
+  if (examSelectedIds.size !== 200) {
+    alert(`必须恰好选中200道题目才能下载！\n当前已选 ${examSelectedIds.size} 题。`);
+    return;
+  }
+  const json = publishGetSelectedJSON();
   downloadFile('today-exam.json', json, 'application/json');
-  alert('✅ 已导出 today-exam.json（200题）\n\n📌 请将文件转发给负责人，由负责人上传至：\nexam/paper/today-exam.json\n\n上传后考生即可在"进行考试"页面参加考试。');
+  alert('✅ 已下载 today-exam.json（200题）\n\n📌 请将文件发送给负责人上传至：\nexam/paper/today-exam.json');
 }
 
 // 搜索防抖
