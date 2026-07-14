@@ -2353,18 +2353,62 @@ async function checkPublishPassword() {
   }
 }
 
+// 加载现有题库到组卷模块
+function publishUseExistingBank() {
+  if (!questions || questions.length === 0) {
+    alert('现有题库为空，请先确保题库数据已加载，或使用上传功能。');
+    return;
+  }
+  examBankQuestions = [...questions];
+  examSelectedIds.clear();
+  renderPublishPage();
+}
+
 // 渲染组卷主界面
 function renderPublishPage() {
   const count = examBankQuestions.length;
   const selCount = examSelectedIds.size;
+  const existingCount = questions ? questions.length : 0;
 
-  let html = `
-    <div class="publish-upload-area${count > 0 ? ' loaded' : ''}" onclick="document.getElementById('bank-file-input').click()">
-      <p style="font-size:36px">${count > 0 ? '✅' : '📁'}</p>
-      <p style="font-weight:600;margin-top:8px">${count > 0 ? '题库已加载' : '点击上传题库JSON文件'}</p>
-      <p class="text-sm mt4">${count > 0 ? `共 ${count} 道题目，题型涵盖单选/多选/判断` : '支持 .json 格式，纯本地 FileReader 解析，不上传网络'}</p>
+  let html = '';
+
+  if (count === 0) {
+    // 未加载题库时，提供两种方式
+    html += `
+    <div style="padding:8px 16px">
+      <div class="card" style="text-align:center">
+        <p style="font-size:40px">📚</p>
+        <h3 style="margin-bottom:4px">选择题库来源</h3>
+        <p class="text-sm mb16" style="color:#6B7280">请选择一种方式载入题库数据</p>
+        ${existingCount > 0 ? `
+        <button class="btn btn-blue" style="width:100%;margin-bottom:10px;padding:14px;font-size:16px" onclick="publishUseExistingBank()">
+          📦 使用现有题库（${existingCount} 题）
+        </button>
+        <p class="text-xs mb8" style="color:#9CA3AF">推荐：直接使用App内置题库，无需额外上传</p>
+        <div style="display:flex;align-items:center;gap:10px;margin:12px 0">
+          <div style="flex:1;height:1px;background:#E5E7EB"></div>
+          <span class="text-xs" style="color:#9CA3AF">或者</span>
+          <div style="flex:1;height:1px;background:#E5E7EB"></div>
+        </div>
+        ` : ''}
+        <div class="publish-upload-area" style="margin:0" onclick="document.getElementById('bank-file-input').click()">
+          <p style="font-size:32px">📁</p>
+          <p style="font-weight:600;margin-top:4px">上传本地题库JSON文件</p>
+          <p class="text-sm mt4">使用自定义题库，支持 .json 格式，纯本地 FileReader 解析</p>
+        </div>
+        <input type="file" id="bank-file-input" accept=".json" style="display:none" onchange="handleBankFileUpload(this)">
+      </div>
+    </div>`;
+  } else {
+    // 已加载题库，显示完整界面
+    html += `
+    <div class="publish-upload-area loaded" onclick="document.getElementById('bank-file-input').click()" style="margin:8px 16px;padding:16px">
+      <p style="font-size:24px">✅</p>
+      <p style="font-weight:600;margin-top:4px">题库已加载 · 共 ${count} 题</p>
+      <p class="text-sm mt2">点击可重新上传其他题库文件替换</p>
       <input type="file" id="bank-file-input" accept=".json" style="display:none" onchange="handleBankFileUpload(this)">
     </div>`;
+  }
 
   if (count > 0) {
     html += `
