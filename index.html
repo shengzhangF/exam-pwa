@@ -2307,10 +2307,10 @@ let examBankQuestions = [];     // 管理员上传的题库
 let examSelectedIds = new Set(); // 管理员选中的题目ID
 let examPaperQuestions = [];    // 考生拉取的考卷题目
 let examUserAnswers = {};       // 考生作答 {qid: [answerLetters]}
-let examTimeLeft = 0;           // 剩余秒数
+let onlineExamTimeLeft = 0;           // 剩余秒数
 let examTimerInterval = null;   // 计时器
 let examCurrentIndex = 0;       // 当前题目索引
-let examSubmitted = false;      // 是否已交卷
+let onlineExamSubmitted = false;      // 是否已交卷
 
 // ==================== EXAM PUBLISH PAGE (管理员组卷) ====================
 
@@ -2785,9 +2785,9 @@ function startExam() {
       // 仅当保存的题目数量与当前考卷一致时才恢复
       if (progress.totalQuestions === examPaperQuestions.length && progress.timeLeft > 0) {
         examUserAnswers = progress.answers || {};
-        examTimeLeft = progress.timeLeft;
+        onlineExamTimeLeft = progress.timeLeft;
         examCurrentIndex = progress.currentIndex || 0;
-        examSubmitted = false;
+        onlineExamSubmitted = false;
         renderExamInterface();
         startExamTimer();
         return;
@@ -2797,9 +2797,9 @@ function startExam() {
 
   // 全新开始
   examUserAnswers = {};
-  examTimeLeft = EXAM_DURATION;
+  onlineExamTimeLeft = EXAM_DURATION;
   examCurrentIndex = 0;
-  examSubmitted = false;
+  onlineExamSubmitted = false;
 
   saveExamProgress();
   renderExamInterface();
@@ -2812,7 +2812,7 @@ function saveExamProgress() {
   localStorage.setItem(`exam_progress_${today}`, JSON.stringify({
     totalQuestions: examPaperQuestions.length,
     answers: examUserAnswers,
-    timeLeft: examTimeLeft,
+    timeLeft: onlineExamTimeLeft,
     currentIndex: examCurrentIndex
   }));
 }
@@ -2821,10 +2821,10 @@ function saveExamProgress() {
 function startExamTimer() {
   if (examTimerInterval) clearInterval(examTimerInterval);
   examTimerInterval = setInterval(() => {
-    examTimeLeft--;
+    onlineExamTimeLeft--;
     saveExamProgress();
     updateExamTimerDisplay();
-    if (examTimeLeft <= 0) {
+    if (onlineExamTimeLeft <= 0) {
       clearInterval(examTimerInterval);
       examTimerInterval = null;
       autoSubmitExam();
@@ -2836,10 +2836,10 @@ function startExamTimer() {
 function updateExamTimerDisplay() {
   const timeEl = document.getElementById('exam-time-display');
   if (!timeEl) return;
-  const mins = Math.floor(examTimeLeft / 60);
-  const secs = examTimeLeft % 60;
+  const mins = Math.floor(onlineExamTimeLeft / 60);
+  const secs = onlineExamTimeLeft % 60;
   timeEl.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-  if (examTimeLeft < 60) {
+  if (onlineExamTimeLeft < 60) {
     timeEl.classList.add('urgent');
   }
   const answeredCount = Object.values(examUserAnswers).filter(a => a && a.length > 0).length;
@@ -2859,7 +2859,7 @@ function renderExamInterface() {
   <div class="exam-timer-bar" id="exam-timer-bar">
     <div>
       <span style="font-size:11px;color:#9CA3AF">剩余时间</span>
-      <div class="time${examTimeLeft < 60 ? ' urgent' : ''}" id="exam-time-display">${String(Math.floor(examTimeLeft / 60)).padStart(2, '0')}:${String(examTimeLeft % 60).padStart(2, '0')}</div>
+      <div class="time${onlineExamTimeLeft < 60 ? ' urgent' : ''}" id="exam-time-display">${String(Math.floor(onlineExamTimeLeft / 60)).padStart(2, '0')}:${String(onlineExamTimeLeft % 60).padStart(2, '0')}</div>
     </div>
     <div style="text-align:right">
       <span class="progress-text" id="exam-progress-text">${Object.values(examUserAnswers).filter(a => a && a.length > 0).length}/${examPaperQuestions.length} 已答</span>
@@ -2934,7 +2934,7 @@ function renderSingleExamQuestion(q) {
 
 // 切换答案选择
 function toggleExamPaperAnswer(qid, val) {
-  if (examSubmitted) return;
+  if (onlineExamSubmitted) return;
   if (!examUserAnswers[qid]) examUserAnswers[qid] = [];
 
   const q = examPaperQuestions.find(q => q.id === qid);
@@ -3009,7 +3009,7 @@ function nextExamQuestion() {
 
 // 确认交卷
 function confirmSubmitExam() {
-  if (examSubmitted) return;
+  if (onlineExamSubmitted) return;
   const answeredCount = Object.values(examUserAnswers).filter(a => a && a.length > 0).length;
   const unanswered = examPaperQuestions.length - answeredCount;
   let msg = unanswered > 0
@@ -3028,8 +3028,8 @@ function autoSubmitExam() {
 
 // 提交试卷并自动批改
 function submitExam() {
-  if (examSubmitted) return;
-  examSubmitted = true;
+  if (onlineExamSubmitted) return;
+  onlineExamSubmitted = true;
 
   // 停止计时器
   if (examTimerInterval) {
