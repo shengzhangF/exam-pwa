@@ -2419,10 +2419,9 @@ function renderPublishPage() {
     </div>
 
     <div class="publish-actions">
-      <button class="btn btn-outline" onclick="publishSelectAll()">✅ 全选</button>
-      <button class="btn btn-outline" onclick="publishClearAll()">🔄 清空选择</button>
       <button class="btn btn-blue" onclick="publishRandom200()">🎲 随机选取200题</button>
-      <button class="btn btn-outline" onclick="publishPreview()" ${selCount === 0 ? 'disabled' : ''}>👁️ 预览已选</button>
+      <button class="btn btn-outline" onclick="publishClearAll()">🔄 清空选择</button>
+      <button class="btn btn-outline" onclick="publishPreview()" ${selCount === 0 ? 'disabled' : ''}>👁️ 预览已选（${selCount}题）</button>
     </div>
 
     <div class="p16" style="padding-bottom:4px">
@@ -2473,17 +2472,21 @@ function renderPublishQuestionList(filterText = '') {
 
   return filtered.map(q => {
     const checked = examSelectedIds.has(q.id);
+    // 构建选项预览
+    const opts = getOptions(q);
+    const optPreview = opts.map(([l, t]) => `<span style="color:#6B7280">${l}.</span> ${escapeHtml(t.length > 20 ? t.substring(0, 20) + '...' : t)}`).join(' &nbsp;|&nbsp; ');
+
     return `
-    <div class="q-check-item" onclick="publishToggleQuestion(${q.id})">
+    <div class="q-check-item" onclick="publishToggleQuestion(${q.id})" style="${checked ? 'background:#EEF2FF;border-left:3px solid #1E40AF' : ''}">
       <input type="checkbox" ${checked ? 'checked' : ''}>
       <div class="q-check-info">
         <div class="stem">${escapeHtml(q.stem)}</div>
         <div class="meta">
           <span class="tag tag-blue">#${q.id}</span>
           <span class="tag ${q.qtype === '多选题' ? 'tag-orange' : q.qtype === '判断题' ? 'tag-blue' : 'tag-green'}">${q.qtype || '单选题'}</span>
-          ${q.category ? `<span class="tag" style="background:#E8F5E9;color:#2E7D32">${escapeHtml(q.category)}</span>` : ''}
-          <span style="margin-left:auto">答案: ${escapeHtml(q.answer || '')}</span>
+          <span style="margin-left:auto;color:#4CAF50;font-weight:600">答案: ${escapeHtml(q.answer || '')}</span>
         </div>
+        ${opts.length > 0 ? `<div style="font-size:12px;color:#6B7280;margin-top:4px;line-height:1.5">${optPreview}</div>` : ''}
       </div>
     </div>`;
   }).join('');
