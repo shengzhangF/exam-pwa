@@ -1,4 +1,4 @@
-const CACHE = 'exammaster-v9';
+const CACHE = 'exammaster-v10';
 const ASSETS = ['./', './index.html', './manifest.json', './questions.json'];
 
 self.addEventListener('install', e => {
@@ -43,6 +43,22 @@ self.addEventListener('fetch', e => {
             status: 200,
             headers: { 'Content-Type': 'application/json' }
           }))
+        )
+      );
+      return;
+    }
+
+    // Network-first for exam paper JSON (today-exam.json)
+    if (url.pathname.includes('/exam/paper/') && url.pathname.endsWith('.json')) {
+      e.respondWith(
+        fetch(e.request, { cache: 'no-cache' }).then(res => {
+          if (res.ok) {
+            const clone = res.clone();
+            caches.open(CACHE).then(c => c.put(e.request, clone));
+          }
+          return res;
+        }).catch(() =>
+          caches.match(e.request)
         )
       );
       return;
