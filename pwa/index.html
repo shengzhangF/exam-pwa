@@ -2642,32 +2642,49 @@ function publishGetSelectedJSON() {
   return JSON.stringify(selected, null, 2);
 }
 
-// 一键转发（使用Web Share API，支持微信等）
+// 一键转发（优先文件分享→文本分享→下载）
 async function publishShareJSON() {
   if (examSelectedIds.size !== 200) {
     alert(`必须恰好选中200道题目才能导出！\n当前已选 ${examSelectedIds.size} 题。`);
     return;
   }
   const json = publishGetSelectedJSON();
-  const file = new File([json], 'today-exam.json', { type: 'application/json' });
 
-  if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-    try {
-      await navigator.share({
-        files: [file],
-        title: '今日考卷',
-        text: '今日考卷JSON文件（200题），请上传至 exam/paper/today-exam.json'
-      });
-    } catch (e) {
-      if (e.name !== 'AbortError') {
-        // 分享失败，回退到下载
-        downloadFile('today-exam.json', json, 'application/json');
+  // 同时触发下载作为保底
+  downloadFile('today-exam.json', json, 'application/json');
+
+  // 尝试Web Share API
+  if (navigator.share) {
+    // 方式1：文件分享（直接发送 .json 文件，微信好友可接收）
+    const file = new File([json], 'today-exam.json', { type: 'application/json' });
+    const canShareFile = navigator.canShare && navigator.canShare({ files: [file] });
+
+    if (canShareFile) {
+      try {
+        await navigator.share({
+          files: [file],
+          title: '今日考卷',
+          text: '今日考卷JSON（200题），请接收并上传至GitHub'
+        });
+        return; // 分享成功
+      } catch (e) {
+        // 用户取消或失败，继续尝试文本分享
+        if (e.name === 'AbortError') return;
       }
     }
+
+    // 方式2：文本分享（分享JSON内容 + 说明）
+    try {
+      const textPreview = json.substring(0, 200) + '...';
+      await navigator.share({
+        title: '今日考卷JSON',
+        text: '【今日考卷】200题已导出。请将此内容保存为 today-exam.json，上传至GitHub仓库 exam/paper/ 目录。\n\n' + textPreview
+      });
+    } catch (e) {
+      // 所有分享方式都失败了，文件已下载
+    }
   } else {
-    // 不支持文件分享，先下载再提示
-    downloadFile('today-exam.json', json, 'application/json');
-    alert('✅ 已下载 today-exam.json（200题）\n\n📌 请将文件通过微信转发给负责人，由负责人上传至：\nexam/paper/today-exam.json');
+    alert('📤 文件已下载！\n\n请通过微信将 today-exam.json 发送给负责人。\n\n接收方需将文件上传至：\nexam/paper/today-exam.json');
   }
 }
 
