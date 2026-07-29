@@ -2298,9 +2298,10 @@ function escapeHtml(str) {
 // ==================== EXAM MODULE - ONLINE EXAM SYSTEM ====================
 // 实名制限时在线考试模块
 const EXAM_PAPER_URL = 'https://shengzhangf.github.io/exam-pwa/exam/paper/today-exam.json';
-const EXAM_OPEN_HOUR = 8;  // 开放时段：08:00
-const EXAM_CLOSE_HOUR = 23; // 关闭时段：23:00
-const EXAM_DURATION = 30 * 60; // 考试限时30分钟（秒）
+const DEFAULT_EXAM_DURATION = 30 * 60; // 默认考试限时30分钟（秒）
+
+// 考试元数据（从考卷JSON加载）
+let examMeta = null;            // { title, startTime, endTime, duration, day, totalQuestions }
 
 // 状态变量
 let examBankQuestions = [];     // 管理员上传的题库
@@ -2771,6 +2772,16 @@ function saveRealName() {
 }
 
 // 加载考卷并进行各项校验
+// 格式化日期时间为本地可读字符串
+function formatDateTime(isoStr) {
+  try {
+    const d = new Date(isoStr);
+    return d.toLocaleString('zh-CN', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  } catch (e) {
+    return isoStr;
+  }
+}
+
 async function loadExamAndCheckStatus() {
   const realName = localStorage.getItem('exam_real_name');
 
@@ -2782,41 +2793,8 @@ async function loadExamAndCheckStatus() {
       <div class="join-status-desc">正在获取今日考卷信息，请稍候</div>
     </div>`;
 
-  // 1. 检查考试开放时段
-  const now = new Date();
-  const hour = now.getHours();
-  if (hour < EXAM_OPEN_HOUR || hour >= EXAM_CLOSE_HOUR) {
-    document.getElementById('exam-join-content').innerHTML = `
-      <div class="join-status-card">
-        <div class="join-status-icon">⏰</div>
-        <div class="join-status-title">考试未开放</div>
-        <div class="join-status-desc">
-          开放时段：每日 <strong>${String(EXAM_OPEN_HOUR).padStart(2, '0')}:00</strong> — <strong>${String(EXAM_CLOSE_HOUR).padStart(2, '0')}:00</strong><br>
-          当前时间：<strong>${now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}</strong><br><br>
-          请在开放时段内进入考试
-        </div>
-        <button class="btn btn-outline mt12" style="width:100%" onclick="navTo('home')">返回首页</button>
-      </div>`;
-    return;
-  }
-
-  // 2. 检查今日是否已完成考试
-  const today = getToday();
-  const resultKey = `exam_result_${today}`;
-  const existingResult = localStorage.getItem(resultKey);
-  if (existingResult) {
-    try {
-      const result = JSON.parse(existingResult);
-      renderExamResult(result);
-    } catch (e) {
-      localStorage.removeItem(resultKey);
-      fetchExamPaper(realName);
-    }
-    return;
-  }
-
-  // 3. 拉取考卷
-  fetchExamPaper(realName);
+  // 1. 先拉取考卷（获取元数据和时间设置）
+  await fetchExamPaper(realName);
 }
 
 // 从网络拉取今日考卷JSON
@@ -2831,10 +2809,77 @@ async function fetchExamPaper(realName) {
       throw new Error('HTTP ' + resp.status);
     }
     const data = await resp.json();
-    if (!Array.isArray(data) || data.length === 0) {
+
+    // 支持新格式 { meta: {...}, questions: [...] } 和旧格式 [...]
+    if (data && data.meta && Array.isArray(data.questions)) {
+      examMeta = data.meta;
+      examPaperQuestions = data.questions;
+    } else if (Array.isArray(data)) {
+      examMeta = null;
+      examPaperQuestions = data;
+    } else {
       throw new Error('考卷数据为空或格式错误');
     }
-    examPaperQuestions = data;
+
+    if (examPaperQuestions.length === 0) {
+      throw new Error('考卷数据为空或格式错误');
+    }
+
+    // 1. 检查考试开放时段（使用元数据中的时间）
+    const examDuration = (examMeta && examMeta.duration) ? examMeta.duration : DEFAULT_EXAM_DURATION;
+    if (examMeta && examMeta.startTime) {
+      const now = new Date();
+      const startTime = new Date(examMeta.startTime);
+      const endTime = examMeta.endTime ? new Date(examMeta.endTime) : new Date(startTime.getTime() + examDuration * 1000);
+
+      if (now < startTime) {
+        document.getElementById('exam-join-content').innerHTML = `
+          <div class="join-status-card">
+            <div class="join-status-icon">⏰</div>
+            <div class="join-status-title">考试尚未开始</div>
+            <div class="join-status-desc">
+              ${examMeta.title ? '<strong>' + escapeHtml(examMeta.title) + '</strong><br>' : ''}
+              开放时间：<strong>${formatDateTime(examMeta.startTime)}</strong><br>
+              截止时间：<strong>${formatDateTime(examMeta.endTime)}</strong><br>
+              当前时间：<strong>${now.toLocaleString('zh-CN', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</strong><br><br>
+              请在开放时段内进入考试
+            </div>
+            <button class="btn btn-outline mt12" style="width:100%" onclick="navTo('home')">返回首页</button>
+          </div>`;
+        return;
+      }
+      if (now >= endTime) {
+        document.getElementById('exam-join-content').innerHTML = `
+          <div class="join-status-card">
+            <div class="join-status-icon">🚫</div>
+            <div class="join-status-title">考试已结束</div>
+            <div class="join-status-desc">
+              ${examMeta.title ? '<strong>' + escapeHtml(examMeta.title) + '</strong><br>' : ''}
+              考试已于 <strong>${formatDateTime(examMeta.endTime)}</strong> 截止<br>
+              当前时间：<strong>${now.toLocaleString('zh-CN', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</strong>
+            </div>
+            <button class="btn btn-outline mt12" style="width:100%" onclick="navTo('home')">返回首页</button>
+          </div>`;
+        return;
+      }
+    }
+
+    // 2. 检查今日是否已完成考试（使用考卷day标识或日期）
+    const examDay = (examMeta && examMeta.day) ? 'day' + examMeta.day : getToday();
+    const resultKey = `exam_result_${examDay}`;
+    const existingResult = localStorage.getItem(resultKey);
+    if (existingResult) {
+      try {
+        const result = JSON.parse(existingResult);
+        renderExamResult(result);
+      } catch (e) {
+        localStorage.removeItem(resultKey);
+        renderPreExamConfirmation(realName);
+      }
+      return;
+    }
+
+    // 3. 显示考前确认
     renderPreExamConfirmation(realName);
   } catch (e) {
     console.error('获取考卷失败:', e);
@@ -2855,19 +2900,27 @@ function showPaperUnavailable() {
 
 // 考前确认页面
 function renderPreExamConfirmation(realName) {
+  const examDuration = (examMeta && examMeta.duration) ? examMeta.duration : DEFAULT_EXAM_DURATION;
+  const durationMin = Math.floor(examDuration / 60);
+  const timeInfoHtml = examMeta && examMeta.startTime
+    ? `考试时间：<strong>${formatDateTime(examMeta.startTime)}</strong> — <strong>${formatDateTime(examMeta.endTime)}</strong>`
+    : `开放时段：<strong>08:00 — 23:00</strong>`;
+  const titleHtml = examMeta && examMeta.title ? `<div style="font-size:14px;color:#4F46E5;margin-bottom:4px">${escapeHtml(examMeta.title)}</div>` : '';
+
   document.getElementById('exam-join-content').innerHTML = `
     <div class="join-status-card">
       <div class="join-status-icon">📝</div>
       <div class="join-status-title">准备就绪</div>
       <div class="join-status-desc">
+        ${titleHtml}
         考生：<strong>${escapeHtml(realName)}</strong><br>
         题目数量：<strong>${examPaperQuestions.length} 题</strong><br>
-        考试限时：<strong>30 分钟</strong><br>
-        开放时段：<strong>08:00 — 23:00</strong>
+        考试限时：<strong>${durationMin} 分钟</strong><br>
+        ${timeInfoHtml}
       </div>
       <div class="exam-rules">
         <p>📌 <strong>考试须知：</strong></p>
-        <p>• 限时30分钟，倒计时结束自动强制交卷</p>
+        <p>• 限时${durationMin}分钟，倒计时结束自动强制交卷</p>
         <p>• 每人每天仅能作答<strong>一次</strong>，交卷后不可重做</p>
         <p>• 答题过程中可退出，答案自动保存</p>
         <p>• 多选题必须<strong>全部选项匹配</strong>正确才得分</p>
@@ -2883,29 +2936,43 @@ function renderPreExamConfirmation(realName) {
 function confirmStartExam() {
   // 再次校验时间和完成状态
   const now = new Date();
-  const hour = now.getHours();
-  if (hour < EXAM_OPEN_HOUR || hour >= EXAM_CLOSE_HOUR) {
-    alert('当前不在考试开放时段，无法开始考试！');
-    loadExamAndCheckStatus();
-    return;
+
+  // 使用元数据校验时间窗口
+  if (examMeta && examMeta.startTime) {
+    const startTime = new Date(examMeta.startTime);
+    const endTime = examMeta.endTime ? new Date(examMeta.endTime) : new Date(startTime.getTime() + DEFAULT_EXAM_DURATION * 1000);
+    if (now < startTime) {
+      alert('考试尚未开始，无法作答！');
+      loadExamAndCheckStatus();
+      return;
+    }
+    if (now >= endTime) {
+      alert('考试已结束，无法作答！');
+      loadExamAndCheckStatus();
+      return;
+    }
   }
-  const today = getToday();
-  if (localStorage.getItem(`exam_result_${today}`)) {
+
+  const examDay = (examMeta && examMeta.day) ? 'day' + examMeta.day : getToday();
+  if (localStorage.getItem(`exam_result_${examDay}`)) {
     alert('您今日已完成考试，无法再次作答！');
     loadExamAndCheckStatus();
     return;
   }
 
+  const examDuration = (examMeta && examMeta.duration) ? examMeta.duration : DEFAULT_EXAM_DURATION;
+  const durationMin = Math.floor(examDuration / 60);
+
   // 弹窗确认
-  if (confirm('⚠️ 确认立即开始考试？\n\n⏱ 限时 30 分钟\n🚫 整场考试仅能作答一次\n📱 中途可退出，答案自动保存\n\n点击"确定"开始计时！')) {
+  if (confirm(`⚠️ 确认立即开始考试？\n\n⏱ 限时 ${durationMin} 分钟\n🚫 整场考试仅能作答一次\n📱 中途可退出，答案自动保存\n\n点击"确定"开始计时！`)) {
     startExam();
   }
 }
 
 // 开始考试
 function startExam() {
-  const today = getToday();
-  const progressKey = `exam_progress_${today}`;
+  const examDay = (examMeta && examMeta.day) ? 'day' + examMeta.day : getToday();
+  const progressKey = `exam_progress_${examDay}`;
 
   // 尝试恢复未完成的考试进度
   const savedProgress = localStorage.getItem(progressKey);
@@ -2927,7 +2994,7 @@ function startExam() {
 
   // 全新开始
   examUserAnswers = {};
-  onlineExamTimeLeft = EXAM_DURATION;
+  onlineExamTimeLeft = (examMeta && examMeta.duration) ? examMeta.duration : DEFAULT_EXAM_DURATION;
   examCurrentIndex = 0;
   onlineExamSubmitted = false;
 
@@ -2938,8 +3005,8 @@ function startExam() {
 
 // 保存考试进度到localStorage（防刷新丢失）
 function saveExamProgress() {
-  const today = getToday();
-  localStorage.setItem(`exam_progress_${today}`, JSON.stringify({
+  const examDay = (examMeta && examMeta.day) ? 'day' + examMeta.day : getToday();
+  localStorage.setItem(`exam_progress_${examDay}`, JSON.stringify({
     totalQuestions: examPaperQuestions.length,
     answers: examUserAnswers,
     timeLeft: onlineExamTimeLeft,
@@ -3168,7 +3235,7 @@ function submitExam() {
   }
 
   const realName = localStorage.getItem('exam_real_name');
-  const today = getToday();
+  const examDay = (examMeta && examMeta.day) ? 'day' + examMeta.day : getToday();
 
   // 自动批改
   let score = 0;
@@ -3203,9 +3270,9 @@ function submitExam() {
   };
 
   // 保存成绩（锁定当日考试）
-  localStorage.setItem(`exam_result_${today}`, JSON.stringify(resultData));
+  localStorage.setItem(`exam_result_${examDay}`, JSON.stringify(resultData));
   // 清除答题进度缓存
-  localStorage.removeItem(`exam_progress_${today}`);
+  localStorage.removeItem(`exam_progress_${examDay}`);
 
   // 显示成绩
   renderExamResult(resultData);
