@@ -2948,52 +2948,48 @@ function renderPreExamConfirmation(realName) {
         <p>• 答题过程中可退出，答案自动保存</p>
         <p>• 多选题必须<strong>全部选项匹配</strong>正确才得分</p>
       </div>
-      <button class="btn-exam-start mt12" onclick="confirmStartExam()">
+      <button class="btn-exam-start mt12" id="btn-start-exam">
         开始考试
       </button>
-      <button class="btn btn-outline mt8" style="width:100%" onclick="navTo('home')">返回首页</button>
+      <button class="btn btn-outline mt8" id="btn-exam-back-home" style="width:100%">返回首页</button>
     </div>`;
+
+  // 使用 addEventListener 替代 inline onclick，兼容移动端
+  const startBtn = document.getElementById('btn-start-exam');
+  if (startBtn) startBtn.addEventListener('click', confirmStartExam);
+  const backBtn = document.getElementById('btn-exam-back-home');
+  if (backBtn) backBtn.addEventListener('click', function() { navTo('home'); });
 }
 
-// 确认开始考试弹窗（自定义弹窗，避免手机浏览器拦截）
+// 确认开始考试（直接使用原生 confirm，与限时考试一致）
 function confirmStartExam() {
   // 再次校验时间和完成状态
   const now = new Date();
   const { startTime, endTime } = getCurrentExamWindow();
   if (now < startTime) {
-    alert('考试尚未开始，请在开放时段内进入考试。'); loadExamAndCheckStatus();
+    alert('考试尚未开始，请在开放时段内进入考试。');
+    loadExamAndCheckStatus();
     return;
   }
   if (now >= endTime) {
-    alert('考试已结束，无法作答。'); loadExamAndCheckStatus();
+    alert('考试已结束，无法作答。');
+    loadExamAndCheckStatus();
     return;
   }
 
   const examDay = getExamDayKey();
   if (localStorage.getItem(`exam_result_${examDay}`)) {
-    alert('您今日已完成考试，无法再次作答。'); loadExamAndCheckStatus();
+    alert('您今日已完成考试，无法再次作答。');
+    loadExamAndCheckStatus();
     return;
   }
 
   const examDuration = (examMeta && examMeta.duration) ? examMeta.duration : DEFAULT_EXAM_DURATION;
   const durationMin = Math.floor(examDuration / 60);
 
-  const html = `<div class="modal-overlay" id="exam-start-confirm-modal" onclick="if(event.target===this)this.remove()">
-    <div class="modal-box">
-      <h3 style="margin:0 0 12px 0;font-size:18px;text-align:center">准备开始考试</h3>
-      <p style="margin:0 0 20px 0;line-height:1.7;color:#374151;text-align:left">
-        ⏱ 限时 <strong>${durationMin}</strong> 分钟<br>
-        🚫 整场考试仅能作答一次<br>
-        📱 中途可退出，答案自动保存<br>
-        ✍️ 点击确定后立即开始计时
-      </p>
-      <div style="display:flex;gap:10px">
-        <button class="btn btn-outline" style="flex:1" onclick="document.getElementById('exam-start-confirm-modal').remove()">取消</button>
-        <button class="btn btn-blue" style="flex:1" onclick="document.getElementById('exam-start-confirm-modal').remove();startExam()">确定开始</button>
-      </div>
-    </div>
-  </div>`;
-  document.body.insertAdjacentHTML('beforeend', html);
+  if (confirm(`确认立即开始考试？\n\n⏱ 限时 ${durationMin} 分钟\n🚫 整场考试仅能作答一次\n📱 中途可退出，答案自动保存\n\n点击"确定"开始计时！`)) {
+    startExam();
+  }
 }
 
 // 开始考试
