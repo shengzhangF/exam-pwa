@@ -2806,7 +2806,7 @@ function getCurrentExamWindow() {
 
 // 生成每日考试本地存储 key：日期 + day 标识，避免跨天重复/冲突
 function getExamDayKey() {
-  return (examMeta && examMeta.day) ? `${getToday()}_day${examMeta.day}` : getToday();
+  return (examMeta && examMeta.day) ? `day${examMeta.day}` : getToday();
 }
 
 async function loadExamAndCheckStatus() {
@@ -2961,17 +2961,17 @@ function confirmStartExam() {
   const now = new Date();
   const { startTime, endTime } = getCurrentExamWindow();
   if (now < startTime) {
-    showExamAlert('考试尚未开始', '请在开放时段内进入考试。', 'loadExamAndCheckStatus');
+    showExamAlert('考试尚未开始', '请在开放时段内进入考试。', loadExamAndCheckStatus);
     return;
   }
   if (now >= endTime) {
-    showExamAlert('考试已结束', '本次考试已截止，无法作答。', 'loadExamAndCheckStatus');
+    showExamAlert('考试已结束', '本次考试已截止，无法作答。', loadExamAndCheckStatus);
     return;
   }
 
   const examDay = getExamDayKey();
   if (localStorage.getItem(`exam_result_${examDay}`)) {
-    showExamAlert('今日已完成', '您今日已完成考试，无法再次作答。', 'loadExamAndCheckStatus');
+    showExamAlert('今日已完成', '您今日已完成考试，无法再次作答。', loadExamAndCheckStatus);
     return;
   }
 
@@ -2997,16 +2997,43 @@ function confirmStartExam() {
 }
 
 // 考试专用提示弹窗（onCloseFnName 为关闭后要执行的全局函数名字符串）
-function showExamAlert(title, msg, onCloseFnName) {
-  const afterClose = onCloseFnName ? `;${onCloseFnName}()` : '';
-  const html = `<div class="modal-overlay" id="exam-alert-modal" onclick="if(event.target===this)this.remove()">
-    <div class="modal-box">
-      <h3 style="margin:0 0 12px 0;font-size:18px;text-align:center">${escapeHtml(title)}</h3>
-      <p style="margin:0 0 20px 0;line-height:1.6;color:#374151;text-align:center">${msg}</p>
-      <button class="btn btn-blue" style="width:100%" onclick="document.getElementById('exam-alert-modal').remove()${afterClose}">知道了</button>
-    </div>
-  </div>`;
-  document.body.insertAdjacentHTML('beforeend', html);
+function showExamAlert(title, msg, callbackFn) {
+  // 移除已有弹窗
+  const existing = document.getElementById('exam-alert-modal');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'exam-alert-modal';
+  overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) overlay.remove();
+  });
+
+  const box = document.createElement('div');
+  box.className = 'modal-box';
+
+  const h3 = document.createElement('h3');
+  h3.style.cssText = 'margin:0 0 12px 0;font-size:18px;text-align:center';
+  h3.textContent = title;
+
+  const p = document.createElement('p');
+  p.style.cssText = 'margin:0 0 20px 0;line-height:1.6;color:#374151;text-align:center';
+  p.textContent = msg;
+
+  const btn = document.createElement('button');
+  btn.className = 'btn btn-blue';
+  btn.style.width = '100%';
+  btn.textContent = '知道了';
+  btn.addEventListener('click', function() {
+    overlay.remove();
+    if (callbackFn) callbackFn();
+  });
+
+  box.appendChild(h3);
+  box.appendChild(p);
+  box.appendChild(btn);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
 }
 
 // 开始考试
@@ -3249,33 +3276,79 @@ function nextExamQuestion() {
   }
 }
 
-// 确认交卷（使用自定义弹窗，避免手机浏览器拦截原生 confirm）
+// 确认交卷（使用 DOM 操作代替 innerHTML + onclick，避免移动端浏览器拦截）
 function confirmSubmitExam() {
   if (onlineExamSubmitted) return;
   const answeredCount = Object.values(examUserAnswers).filter(a => a && a.length > 0).length;
   const unanswered = examPaperQuestions.length - answeredCount;
-  const msg = unanswered > 0
+  const msgHTML = unanswered > 0
     ? `还有 <strong>${unanswered}</strong> 道题目未作答！<br><br>确定要交卷吗？<br><span style="color:#DC2626">未作答的题目将计为错误</span>`
     : '确定要交卷吗？<br><span style="color:#6B7280">交卷后将无法修改答案</span>';
 
-  const html = `<div class="modal-overlay" id="exam-submit-confirm-modal" onclick="if(event.target===this)this.remove()">
-    <div class="modal-box">
-      <h3 style="margin:0 0 12px 0;font-size:18px;text-align:center">确认交卷</h3>
-      <p style="margin:0 0 20px 0;line-height:1.6;color:#374151;text-align:center">${msg}</p>
-      <div style="display:flex;gap:10px">
-        <button class="btn btn-outline" style="flex:1" onclick="document.getElementById('exam-submit-confirm-modal').remove()">取消</button>
-        <button class="btn btn-red" style="flex:1" onclick="document.getElementById('exam-submit-confirm-modal').remove();submitExam()">确定交卷</button>
-      </div>
-    </div>
-  </div>`;
-  document.body.insertAdjacentHTML('beforeend', html);
+  // 移除已有弹窗
+  const existing = document.getElementById('exam-submit-confirm-modal');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'exam-submit-confirm-modal';
+  overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) overlay.remove();
+  });
+
+  const box = document.createElement('div');
+  box.className = 'modal-box';
+
+  const h3 = document.createElement('h3');
+  h3.style.cssText = 'margin:0 0 12px 0;font-size:18px;text-align:center';
+  h3.textContent = '确认交卷';
+
+  const p = document.createElement('p');
+  p.style.cssText = 'margin:0 0 20px 0;line-height:1.6;color:#374151;text-align:center';
+  p.innerHTML = msgHTML;
+
+  const btnRow = document.createElement('div');
+  btnRow.style.cssText = 'display:flex;gap:10px';
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className = 'btn btn-outline';
+  cancelBtn.style.flex = '1';
+  cancelBtn.textContent = '取消';
+  cancelBtn.addEventListener('click', function() { overlay.remove(); });
+
+  const confirmBtn = document.createElement('button');
+  confirmBtn.className = 'btn btn-red';
+  confirmBtn.style.flex = '1';
+  confirmBtn.textContent = '确定交卷';
+  confirmBtn.addEventListener('click', function() {
+    overlay.remove();
+    submitExam();
+  });
+
+  btnRow.appendChild(cancelBtn);
+  btnRow.appendChild(confirmBtn);
+  box.appendChild(h3);
+  box.appendChild(p);
+  box.appendChild(btnRow);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
 }
 
 // 倒计时结束自动交卷
 function autoSubmitExam() {
-  showExamAlert('考试时间到', '系统将自动交卷。', '');
-  // 弹窗显示后稍微延迟再提交，确保用户能看到提示
-  setTimeout(() => submitExam(), 800);
+  if (examTimerInterval) {
+    clearInterval(examTimerInterval);
+    examTimerInterval = null;
+  }
+  // 显示弹窗提示，同时5秒后自动交卷（防止用户不点击弹窗）
+  showExamAlert('考试时间到', '系统将在5秒后自动交卷。', submitExam);
+  setTimeout(() => {
+    const alertModal = document.getElementById('exam-alert-modal');
+    if (alertModal) {
+      alertModal.remove();
+      submitExam();
+    }
+  }, 5000);
 }
 
 // 提交试卷并自动批改
