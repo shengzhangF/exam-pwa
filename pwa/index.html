@@ -2312,6 +2312,8 @@ let onlineExamTimeLeft = 0;           // 剩余秒数
 let examTimerInterval = null;   // 计时器
 let examCurrentIndex = 0;       // 当前题目索引
 let onlineExamSubmitted = false;      // 是否已交卷
+let currentExamWrongs = [];           // 当前成绩页错题数据（分页用）
+let currentExamWrongOffset = 0;       // 当前已渲染错题数量
 
 // ==================== EXAM PUBLISH PAGE (管理员组卷) ====================
 
@@ -3258,6 +3260,17 @@ function submitExam() {
   }
 
   try {
+  // 显示交卷中，避免用户以为卡住
+  const contentEl = document.getElementById('exam-join-content');
+  if (contentEl) {
+    contentEl.innerHTML = `
+      <div class="join-status-card">
+        <div class="join-status-icon">⏳</div>
+        <div class="join-status-title">正在交卷...</div>
+        <div class="join-status-desc">系统正在批改并保存成绩，请稍候</div>
+      </div>`;
+  }
+
   const realName = localStorage.getItem('exam_real_name');
   const examDay = getExamDayKey();
 
@@ -3272,11 +3285,11 @@ function submitExam() {
     const isCorrect = userAns === correctAns;
     if (isCorrect) score++;
 
+    // 只存必要字段，避免 localStorage 体积过大导致手机卡顿
     results.push({
       id: q.id,
       stem: q.stem,
       qtype: q.qtype,
-      options: getOptions(q),
       userAnswer: userAns,
       correctAnswer: correctAns,
       correct: isCorrect
@@ -3326,53 +3339,8 @@ function renderExamResult(result) {
   const wrongs = result.results.filter(r => !r.correct);
   if (wrongs.length > 0) {
     html += `<div class="section-title">❌ 错题列表（${wrongs.length}题）</div>`;
-    wrongs.forEach((r, i) => {
-      html += `<div class="wrong-item">
-        <div class="flex-row" style="margin-bottom:6px;flex-wrap:wrap;gap:4px">
-          <span class="tag tag-red">#${r.id}</span>
-          <span class="tag ${r.qtype === '多选题' ? 'tag-orange' : r.qtype === '判断题' ? 'tag-blue' : 'tag-green'}">${r.qtype || '单选题'}</span>
-        </div>
-        <div class="stem">${i + 1}. ${escapeHtml(r.stem)}</div>`;
-
-      // 判断题选项展示
-      if (r.qtype === '判断题') {
-        html += `<div class="flex-row" style="gap:8px;margin-top:8px">`;
-        ['对', '错'].forEach(v => {
-          const isCorrect = r.correctAnswer === v;
-          const isUserWrong = r.userAnswer === v && !isCorrect;
-          let bg = '#F3F4F6', color = '#9CA3AF', label = '';
-          if (isCorrect) { bg = '#E8F5E9'; color = '#2E7D32'; label = ' ✓ 正确答案'; }
-          else if (isUserWrong) { bg = '#FFEBEE'; color = '#C62828'; label = ' ✗ 你的选择'; }
-          html += `<div style="flex:1;padding:10px;border-radius:8px;background:${bg};color:${color};text-align:center;font-size:14px;font-weight:600">${v === '对' ? '✓ 正确' : '✗ 错误'}${label}</div>`;
-        });
-        html += `</div>`;
-      } else if (r.options && r.options.length > 0) {
-        // 选择题选项展示
-        r.options.forEach(([letter, text]) => {
-          const isCorrect = r.correctAnswer.includes(letter);
-          const isUserWrong = r.userAnswer.includes(letter) && !isCorrect;
-          let bg = '#fff', border = '1px solid #E5E7EB', label = '', letterBg = '#F3F4F6', letterColor = '#9CA3AF';
-          if (isCorrect) {
-            bg = '#E8F5E9'; border = '2px solid #4CAF50'; letterBg = '#4CAF50'; letterColor = '#fff'; label = '✓ 答案';
-          } else if (isUserWrong) {
-            bg = '#FFEBEE'; border = '2px solid #F44336'; letterBg = '#F44336'; letterColor = '#fff'; label = '✗ 你的选择';
-          }
-          html += `<div style="display:flex;align-items:center;padding:8px 10px;margin:3px 0;border-radius:8px;font-size:13px;gap:8px;background:${bg};border:${border}">
-            <span style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;font-size:12px;font-weight:700;flex-shrink:0;background:${letterBg};color:${letterColor}">${letter}</span>
-            <span style="flex:1">${text}</span>
-            <span style="font-size:11px;font-weight:600;flex-shrink:0">${label}</span>
-          </div>`;
-        });
-      }
-
-      // 答案对比
-      html += `<div style="margin-top:8px;padding:8px 12px;background:#F9FAFB;border-radius:8px;font-size:13px;line-height:1.6">
-        <span style="color:#DC2626">你的答案：<strong>${r.userAnswer || '未作答'}</strong></span><br>
-        <span style="color:#4CAF50">正确答案：<strong>${r.correctAnswer}</strong></span>
-      </div>`;
-
-      html += `</div>`;
-    });
+    html += `<div id="exam-wrongs-container"></div>`;
+    html += `<div id="exam-wrongs-load-more" style="padding:12px 16px"></div>`;
   } else {
     html += `<div class="card" style="text-align:center;margin:16px">
       <p style="font-size:48px">🏆</p>
@@ -3385,6 +3353,91 @@ function renderExamResult(result) {
 
   document.getElementById('exam-join-content').innerHTML = html;
   window.scrollTo(0, 0);
+
+  // 分页渲染错题，避免手机一次性渲染过多 DOM 卡死
+  currentExamWrongs = wrongs;
+  currentExamWrongOffset = 0;
+  if (wrongs.length > 0) {
+    renderExamWrongBatch(20);
+  }
+}
+
+// 渲染一批错题（分页加载）
+function renderExamWrongBatch(batchSize) {
+  const container = document.getElementById('exam-wrongs-container');
+  const loadMoreEl = document.getElementById('exam-wrongs-load-more');
+  if (!container || !loadMoreEl) return;
+
+  const end = Math.min(currentExamWrongOffset + batchSize, currentExamWrongs.length);
+  const batch = currentExamWrongs.slice(currentExamWrongOffset, end);
+
+  batch.forEach((r, i) => {
+    const globalIndex = currentExamWrongOffset + i;
+    container.insertAdjacentHTML('beforeend', buildWrongItemHtml(r, globalIndex));
+  });
+
+  currentExamWrongOffset = end;
+
+  if (currentExamWrongOffset < currentExamWrongs.length) {
+    const remaining = currentExamWrongs.length - currentExamWrongOffset;
+    loadMoreEl.innerHTML = `<button class="btn btn-outline" style="width:100%" onclick="renderExamWrongBatch(20)">加载更多错题（还剩 ${remaining} 题）</button>`;
+  } else {
+    loadMoreEl.innerHTML = '';
+  }
+}
+
+// 构建单个错题 HTML
+function buildWrongItemHtml(r, i) {
+  // 尝试从当前考卷查找完整题目选项
+  const fullQ = examPaperQuestions.find(q => q.id === r.id);
+  const options = fullQ ? getOptions(fullQ) : [];
+
+  let html = `<div class="wrong-item">
+    <div class="flex-row" style="margin-bottom:6px;flex-wrap:wrap;gap:4px">
+      <span class="tag tag-red">#${r.id}</span>
+      <span class="tag ${r.qtype === '多选题' ? 'tag-orange' : r.qtype === '判断题' ? 'tag-blue' : 'tag-green'}">${r.qtype || '单选题'}</span>
+    </div>
+    <div class="stem">${i + 1}. ${escapeHtml(r.stem)}</div>`;
+
+  // 判断题选项展示
+  if (r.qtype === '判断题') {
+    html += `<div class="flex-row" style="gap:8px;margin-top:8px">`;
+    ['对', '错'].forEach(v => {
+      const isCorrect = r.correctAnswer === v;
+      const isUserWrong = r.userAnswer === v && !isCorrect;
+      let bg = '#F3F4F6', color = '#9CA3AF', label = '';
+      if (isCorrect) { bg = '#E8F5E9'; color = '#2E7D32'; label = ' ✓ 正确答案'; }
+      else if (isUserWrong) { bg = '#FFEBEE'; color = '#C62828'; label = ' ✗ 你的选择'; }
+      html += `<div style="flex:1;padding:10px;border-radius:8px;background:${bg};color:${color};text-align:center;font-size:14px;font-weight:600">${v === '对' ? '✓ 正确' : '✗ 错误'}${label}</div>`;
+    });
+    html += `</div>`;
+  } else if (options.length > 0) {
+    // 选择题选项展示
+    options.forEach(([letter, text]) => {
+      const isCorrect = r.correctAnswer.includes(letter);
+      const isUserWrong = r.userAnswer.includes(letter) && !isCorrect;
+      let bg = '#fff', border = '1px solid #E5E7EB', label = '', letterBg = '#F3F4F6', letterColor = '#9CA3AF';
+      if (isCorrect) {
+        bg = '#E8F5E9'; border = '2px solid #4CAF50'; letterBg = '#4CAF50'; letterColor = '#fff'; label = '✓ 答案';
+      } else if (isUserWrong) {
+        bg = '#FFEBEE'; border = '2px solid #F44336'; letterBg = '#F44336'; letterColor = '#fff'; label = '✗ 你的选择';
+      }
+      html += `<div style="display:flex;align-items:center;padding:8px 10px;margin:3px 0;border-radius:8px;font-size:13px;gap:8px;background:${bg};border:${border}">
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;font-size:12px;font-weight:700;flex-shrink:0;background:${letterBg};color:${letterColor}">${letter}</span>
+        <span style="flex:1">${text}</span>
+        <span style="font-size:11px;font-weight:600;flex-shrink:0">${label}</span>
+      </div>`;
+    });
+  }
+
+  // 答案对比
+  html += `<div style="margin-top:8px;padding:8px 12px;background:#F9FAFB;border-radius:8px;font-size:13px;line-height:1.6">
+    <span style="color:#DC2626">你的答案：<strong>${r.userAnswer || '未作答'}</strong></span><br>
+    <span style="color:#4CAF50">正确答案：<strong>${r.correctAnswer}</strong></span>
+  </div>`;
+
+  html += `</div>`;
+  return html;
 }
 
 // ==================== INIT ====================
