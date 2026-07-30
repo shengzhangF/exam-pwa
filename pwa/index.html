@@ -3463,52 +3463,6 @@ async function init() {
   updateStats();
   updateEbbBadge();
 
-  if ('serviceWorker' in navigator) {
-    // 加时间戳强制浏览器每次检查 SW 更新，避免旧 SW 长期缓存
-    navigator.serviceWorker.register('sw.js?v=' + Date.now()).then(reg => {
-      // If a new SW is already waiting, show the update banner
-      if (reg.waiting) { showUpdateBanner(); }
-      reg.addEventListener('updatefound', () => {
-        const newWorker = reg.installing;
-        if (!newWorker) return;
-        newWorker.addEventListener('statechange', () => {
-          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            showUpdateBanner();
-          }
-        });
-        // Also check immediately — if SW already reached 'installed' before we added the listener, we'd miss it
-        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-          showUpdateBanner();
-        }
-      });
-    }).catch(() => {});
-
-    // Reload once the new SW takes over after user triggers skipWaiting
-    let refreshing = false;
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (refreshing) return;
-      refreshing = true;
-      window.location.reload();
-    });
-  }
-}
-
-function showUpdateBanner() {
-  if (document.getElementById('update-banner')) return;
-  const banner = document.createElement('div');
-  banner.id = 'update-banner';
-  banner.style.cssText = 'position:fixed;bottom:70px;left:50%;transform:translateX(-50%);background:#1D4ED8;color:#fff;padding:10px 20px;border-radius:24px;font-size:14px;font-weight:600;z-index:9999;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.25);white-space:nowrap;';
-  banner.textContent = '✨ 有新版本，点击刷新';
-  banner.addEventListener('click', () => {
-    banner.textContent = '更新中...';
-    banner.style.pointerEvents = 'none';
-    navigator.serviceWorker.getRegistration().then(reg => {
-      if (reg && reg.waiting) {
-        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-      }
-    });
-  });
-  document.body.appendChild(banner);
 }
 
 init();
