@@ -3229,17 +3229,26 @@ function nextExamQuestion() {
   }
 }
 
-// 确认交卷
+// 确认交卷（使用自定义弹窗，避免手机浏览器拦截原生 confirm）
 function confirmSubmitExam() {
   if (onlineExamSubmitted) return;
   const answeredCount = Object.values(examUserAnswers).filter(a => a && a.length > 0).length;
   const unanswered = examPaperQuestions.length - answeredCount;
-  let msg = unanswered > 0
-    ? `还有 ${unanswered} 道题目未作答！\n\n确定要交卷吗？\n（未作答的题目将计为错误）`
-    : '确定要交卷吗？\n交卷后将无法修改答案。';
-  if (confirm(msg)) {
-    submitExam();
-  }
+  const msg = unanswered > 0
+    ? `还有 <strong>${unanswered}</strong> 道题目未作答！<br><br>确定要交卷吗？<br><span style="color:#DC2626">未作答的题目将计为错误</span>`
+    : '确定要交卷吗？<br><span style="color:#6B7280">交卷后将无法修改答案</span>';
+
+  const html = `<div class="modal-overlay" id="exam-submit-confirm-modal" onclick="if(event.target===this)this.remove()">
+    <div class="modal-box">
+      <h3 style="margin:0 0 12px 0;font-size:18px;text-align:center">确认交卷</h3>
+      <p style="margin:0 0 20px 0;line-height:1.6;color:#374151;text-align:center">${msg}</p>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-outline" style="flex:1" onclick="document.getElementById('exam-submit-confirm-modal').remove()">取消</button>
+        <button class="btn btn-red" style="flex:1" onclick="document.getElementById('exam-submit-confirm-modal').remove();submitExam()">确定交卷</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
 }
 
 // 倒计时结束自动交卷

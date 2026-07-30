@@ -1,4 +1,4 @@
-const CACHE = 'exammaster-v12';
+const CACHE = 'exammaster-v13';
 const ASSETS = ['./', './index.html', './manifest.json', './questions.json'];
 
 self.addEventListener('install', e => {
