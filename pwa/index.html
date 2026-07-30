@@ -3489,7 +3489,8 @@ async function init() {
   updateEbbBadge();
 
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').then(reg => {
+    // 加时间戳强制浏览器每次检查 SW 更新，避免旧 SW 长期缓存
+    navigator.serviceWorker.register('sw.js?v=' + Date.now()).then(reg => {
       // If a new SW is already waiting, show the update banner
       if (reg.waiting) { showUpdateBanner(); }
       reg.addEventListener('updatefound', () => {
