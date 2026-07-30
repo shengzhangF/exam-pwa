@@ -5,7 +5,7 @@
     "endTime": "2026-07-30T22:00:00+08:00",
     "duration": 1800,
     "day": 1,
-    "version": 2,
+    "version": 3,
     "totalQuestions": 200
   },
   "questions": [
