@@ -2955,38 +2955,58 @@ function renderPreExamConfirmation(realName) {
     </div>`;
 }
 
-// 确认开始考试弹窗
+// 确认开始考试弹窗（自定义弹窗，避免手机浏览器拦截）
 function confirmStartExam() {
   // 再次校验时间和完成状态
   const now = new Date();
-
-  // 校验考试窗口（优先 meta，否则前一天20:00-当天20:00）
   const { startTime, endTime } = getCurrentExamWindow();
   if (now < startTime) {
-    alert('考试尚未开始，无法作答！');
-    loadExamAndCheckStatus();
+    showExamAlert('考试尚未开始', '请在开放时段内进入考试。', 'loadExamAndCheckStatus');
     return;
   }
   if (now >= endTime) {
-    alert('考试已结束，无法作答！');
-    loadExamAndCheckStatus();
+    showExamAlert('考试已结束', '本次考试已截止，无法作答。', 'loadExamAndCheckStatus');
     return;
   }
 
   const examDay = getExamDayKey();
   if (localStorage.getItem(`exam_result_${examDay}`)) {
-    alert('您今日已完成考试，无法再次作答！');
-    loadExamAndCheckStatus();
+    showExamAlert('今日已完成', '您今日已完成考试，无法再次作答。', 'loadExamAndCheckStatus');
     return;
   }
 
   const examDuration = (examMeta && examMeta.duration) ? examMeta.duration : DEFAULT_EXAM_DURATION;
   const durationMin = Math.floor(examDuration / 60);
 
-  // 弹窗确认
-  if (confirm(`⚠️ 确认立即开始考试？\n\n⏱ 限时 ${durationMin} 分钟\n🚫 整场考试仅能作答一次\n📱 中途可退出，答案自动保存\n\n点击"确定"开始计时！`)) {
-    startExam();
-  }
+  const html = `<div class="modal-overlay" id="exam-start-confirm-modal" onclick="if(event.target===this)this.remove()">
+    <div class="modal-box">
+      <h3 style="margin:0 0 12px 0;font-size:18px;text-align:center">准备开始考试</h3>
+      <p style="margin:0 0 20px 0;line-height:1.7;color:#374151;text-align:left">
+        ⏱ 限时 <strong>${durationMin}</strong> 分钟<br>
+        🚫 整场考试仅能作答一次<br>
+        📱 中途可退出，答案自动保存<br>
+        ✍️ 点击确定后立即开始计时
+      </p>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-outline" style="flex:1" onclick="document.getElementById('exam-start-confirm-modal').remove()">取消</button>
+        <button class="btn btn-blue" style="flex:1" onclick="document.getElementById('exam-start-confirm-modal').remove();startExam()">确定开始</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
+// 考试专用提示弹窗（onCloseFnName 为关闭后要执行的全局函数名字符串）
+function showExamAlert(title, msg, onCloseFnName) {
+  const afterClose = onCloseFnName ? `;${onCloseFnName}()` : '';
+  const html = `<div class="modal-overlay" id="exam-alert-modal" onclick="if(event.target===this)this.remove()">
+    <div class="modal-box">
+      <h3 style="margin:0 0 12px 0;font-size:18px;text-align:center">${escapeHtml(title)}</h3>
+      <p style="margin:0 0 20px 0;line-height:1.6;color:#374151;text-align:center">${msg}</p>
+      <button class="btn btn-blue" style="width:100%" onclick="document.getElementById('exam-alert-modal').remove()${afterClose}">知道了</button>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
 }
 
 // 开始考试
@@ -3253,8 +3273,9 @@ function confirmSubmitExam() {
 
 // 倒计时结束自动交卷
 function autoSubmitExam() {
-  alert('⏰ 考试时间到！系统将自动交卷。');
-  submitExam();
+  showExamAlert('考试时间到', '系统将自动交卷。', '');
+  // 弹窗显示后稍微延迟再提交，确保用户能看到提示
+  setTimeout(() => submitExam(), 800);
 }
 
 // 提交试卷并自动批改
@@ -3324,7 +3345,7 @@ function submitExam() {
   renderExamResult(resultData);
   } catch (err) {
     console.error('交卷失败:', err);
-    alert('交卷失败，请刷新页面后重试。错误：' + err.message);
+    showExamAlert('交卷失败', '请刷新页面后重试。错误：' + escapeHtml(err.message), '');
     onlineExamSubmitted = false;
   }
 }
