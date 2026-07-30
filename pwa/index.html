@@ -2806,7 +2806,10 @@ function getCurrentExamWindow() {
 
 // 生成每日考试本地存储 key：日期 + day 标识，避免跨天重复/冲突
 function getExamDayKey() {
-  return (examMeta && examMeta.day) ? `day${examMeta.day}` : getToday();
+  if (examMeta && examMeta.day) {
+    return examMeta.version ? `day${examMeta.day}_v${examMeta.version}` : `day${examMeta.day}`;
+  }
+  return getToday();
 }
 
 async function loadExamAndCheckStatus() {

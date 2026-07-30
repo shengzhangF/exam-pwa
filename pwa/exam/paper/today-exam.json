@@ -1,10 +1,11 @@
 {
   "meta": {
     "title": "第一天考试练习",
-    "startTime": "2026-07-29T20:00:00+08:00",
-    "endTime": "2026-07-30T20:00:00+08:00",
+    "startTime": "2026-07-28T20:00:00+08:00",
+    "endTime": "2026-07-31T22:00:00+08:00",
     "duration": 1800,
     "day": 1,
+    "version": 2,
     "totalQuestions": 200
   },
   "questions": [
