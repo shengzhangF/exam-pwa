@@ -1,4 +1,4 @@
-const CACHE = 'exammaster-v10';
+const CACHE = 'exammaster-v11';
 const ASSETS = ['./', './index.html', './manifest.json', './questions.json'];
 
 self.addEventListener('install', e => {
@@ -7,6 +7,8 @@ self.addEventListener('install', e => {
       console.warn('SW install: some assets failed to cache', err);
     }))
   );
+  // 新版本安装后立即接管，不再等待用户关闭标签页
+  self.skipWaiting();
 });
 
 self.addEventListener('message', e => {
@@ -50,15 +52,24 @@ self.addEventListener('fetch', e => {
 
     // Network-first for exam paper JSON (today-exam.json)
     if (url.pathname.includes('/exam/paper/') && url.pathname.endsWith('.json')) {
+      const cacheKey = new URL(e.request.url);
+      cacheKey.search = ''; // 缓存 key 去掉时间戳等参数
+      const fetchUrl = new URL(e.request.url);
+      fetchUrl.searchParams.set('_t', Date.now().toString()); // 强制绕过 HTTP 缓存
       e.respondWith(
-        fetch(e.request, { cache: 'no-cache' }).then(res => {
+        fetch(fetchUrl.toString(), { cache: 'no-cache' }).then(res => {
           if (res.ok) {
             const clone = res.clone();
-            caches.open(CACHE).then(c => c.put(e.request, clone));
+            caches.open(CACHE).then(c => c.put(cacheKey.toString(), clone));
           }
           return res;
         }).catch(() =>
-          caches.match(e.request)
+          caches.match(cacheKey.toString()).then(c =>
+            c || new Response('{"meta":{},"questions":[]}', {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' }
+            })
+          )
         )
       );
       return;
