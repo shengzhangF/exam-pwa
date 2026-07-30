@@ -2828,7 +2828,7 @@ async function loadExamAndCheckStatus() {
 async function fetchExamPaper(realName) {
   try {
     const paperUrl = EXAM_PAPER_URL + (EXAM_PAPER_URL.includes('?') ? '&' : '?') + '_t=' + Date.now();
-    const resp = await fetch(paperUrl, { cache: 'no-cache' });
+    const resp = await fetch(paperUrl, { cache: 'no-store' });
     if (!resp.ok) {
       if (resp.status === 404) {
         showPaperUnavailable();
